@@ -1,0 +1,225 @@
+PRE-TRIMMING SUMMARIES 
+$acad_level
+[1] "Senior"    "Junior"    "Sophomore" "Freshman" 
+
+$campus
+[1] "DTPHX" "TEMPE" "WEST"  "POLY" 
+
+$ethnicity
+[1] "White"      "Hispanic"   "Black"      "American I" "Asian"     
+[6] "Haw/Pac"    "2 or More" 
+
+$first_gen
+[1] "0" "1"
+
+$gender
+[1] "0" "1"
+
+$icourse
+[1] "0" "1"
+
+$in_state
+[1] "0" "1"
+
+$pell_eligible
+[1] "0" "1"
+
+$required_course
+[1] "0" "1"
+
+$session
+[1] "C" "A" "B"
+
+$strm
+ [1] "2141" "2147" "2151" "2157" "2127" "2131" "2161" "2117" "2137"
+[10] "2114" "2121" "2167" "2171" "2134" "2181" "2124" "2177" "2164"
+[19] "2144" "2174" "2154"
+
+$took_instructor
+[1] "0" "1"
+
+$took_course
+[1] "0" "1"
+
+$transfer
+[1] "0" "1"
+
+$acad_level
+   Senior    Junior Sophomore  Freshman 
+   250049    310027    265882    262432 
+
+$age_at_class_start
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  13.00   19.00   20.00   21.08   22.00   80.00 
+
+$campus
+ DTPHX  TEMPE   WEST   POLY 
+195120 761524  73421  58325 
+
+$course_diff_index
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.000   2.794   3.022   3.014   3.219   4.319 
+
+$course_load
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   1.00   14.00   15.00   15.18   17.00   24.00 
+
+$ethnicity
+     White   Hispanic      Black American I      Asian    Haw/Pac 
+    609897     268905      60317      16393      82705       3403 
+ 2 or More 
+     46770 
+
+$fed_efc
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      0       0    3331   16409   17572  999999 
+
+$first_gen
+     0      1 
+676651 411739 
+
+$gender
+     0      1 
+560081 528309 
+
+$icourse
+     0      1 
+681680 406710 
+
+$in_state
+     0      1 
+204494 883896 
+
+$nth_term
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    1.0     2.0     3.0     3.6     5.0    16.0 
+
+$pell_eligible
+     0      1 
+646392 441998 
+
+$prev_term_gpa
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   0.00    2.79    3.20    3.14    3.59    4.33 
+
+$required_course
+     0      1 
+544749 543641 
+
+$session
+     C      A      B 
+845829 120852 121709 
+
+$strm
+  2141   2147   2151   2157   2127   2131   2161   2117   2137   2114 
+ 68230  80766  80684 100004  59341  54327  86505  46507  68976   1421 
+  2121   2167   2171   2134   2181   2124   2177   2164   2144   2174 
+ 43997 103965  91536   2890  82920   2124  94186   5210   4265   5663 
+  2154 
+  4873 
+
+$took_instructor
+      0       1 
+1003898   84492 
+
+$took_course
+     0      1 
+993562  94828 
+
+$transfer
+     0      1 
+736376 352014 
+
+$trnsfr_credit_accpt
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ -10.00    0.00   10.00   23.27   48.04  456.00 
+
+POST-TRIMMING SUMMARIES 
+$acad_level
+ Freshman    Senior    Junior Sophomore 
+   241406    212795    286025    250133 
+
+$age_at_class_start
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  13.00   19.00   20.00   20.93   21.00   80.00 
+
+$campus
+ TEMPE  DTPHX   WEST   POLY 
+691707 179366  67001  52285 
+
+$course_diff_index
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.000   2.794   3.022   3.013   3.219   4.319 
+
+$course_load
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   1.00   14.00   16.00   15.21   17.00   24.00 
+
+$ethnicity
+     White   Hispanic      Black American I      Asian    Haw/Pac 
+    542588     254549      56004      14974      76554       3215 
+ 2 or More 
+     42475 
+
+$fed_efc
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      0       0    2687    9978   14623   68876 
+
+$first_gen
+     0      1 
+602773 387586 
+
+$gender
+     0      1 
+512514 477845 
+
+$icourse
+     0      1 
+620714 369645 
+
+$in_state
+     0      1 
+177983 812376 
+
+$nth_term
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.000   2.000   3.000   3.653   5.000  16.000 
+
+$pell_eligible
+     0      1 
+571184 419175 
+
+$prev_term_gpa
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.000   2.780   3.200   3.135   3.590   4.330 
+
+$required_course
+     0      1 
+498031 492328 
+
+$session
+     C      A      B 
+770122 109734 110503 
+
+$strm
+ 2141  2147  2151  2157  2127  2131  2161  2117  2137  2114  2121 
+62402 73431 73389 91079 54108 49640 78759 42525 63084  1220 40210 
+ 2167  2171  2134  2181  2124  2177  2164  2144  2174  2154 
+94673 83063  2511 75292  1829 85721  4560  3734  4904  4225 
+
+$took_course
+     0      1 
+903154  87205 
+
+$took_instructor
+     0      1 
+912544  77815 
+
+$transfer
+     0      1 
+686353 304006 
+
+$trnsfr_credit_accpt
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   0.00    0.00    9.00   21.29   43.00   64.00 
+

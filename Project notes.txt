@@ -1,0 +1,64 @@
+iCourse Project Layout/Objectives
+
+initial investigation:
+    - which kind of courses are offered?
+    - who is taking them?
+    - who offers them?
+
+
+course choice model:
+    - can we predict the likelihood of someone taking an iCourse?
+    - what factors influence a student's decision to take an iCourse?
+        - class size
+        - level
+        - availability (what if there is only one modality offered in a given term?)
+
+grade differences
+    - use PS matching to determine if there is a significant difference in
+    grades
+
+
+
+
+
+course choice model data setup:
+
+- student-course level: each observation is a student in a course
+
+- variables to include:
+  - student demographics:
+    - age
+    - ethnicity
+    - pell eligible/ever_pell
+    - estimated family contr.
+    - first gen
+    - gender
+    - in state
+    - transfer
+    
+  - student academic characteristics:
+    - academic level
+    - academic standing
+    - campus
+    - course load (unofficial var.)
+    - nth_term 
+    - gpa in previous term
+    - accepted transfer credits
+    
+  - course characteristics
+    - class duration
+    - class fees
+    - course_diff_index
+    - fac_diff_index
+    - location
+    - required_course
+    - session
+    - ssr_component
+    - subj_diff_index
+    - same instructor
+    - same course
+
+  - other
+    - school year
+    - strm
+    - term
