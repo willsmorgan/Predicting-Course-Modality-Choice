@@ -19,12 +19,16 @@
 rm(list = ls(all = TRUE))
 
 libs <- c("tidyverse", "glmnet", "e1071", "magrittr", "doParallel", "foreach",
-          'caret')
+          'caret', 'randomForest')
 lapply(libs, library, character.only = TRUE)
 set.seed(18)
 
 training <- readRDS("Data/course choice training.Rds")
 testing <- readRDS("Data/course choice testing.Rds")
+
+# ## for testing purposes only:
+# training %<>% sample_frac(0.01)
+# testing %<>% sample_frac(0.01)
 #------------------------------------------------------------------------------#
 
 ## 1. Preprocessing
@@ -34,6 +38,9 @@ Y_train <- training[, "icourse"] %>% unlist()
 
 X_test <- model.matrix(icourse ~ ., testing)
 Y_test <- testing[, "icourse"] %>% unlist()
+
+# Define folds for cross-validation here
+folds <-  createFolds(Y_train, k = 10, list = FALSE)
 
 ###NOTES:
 # make it so that you are able to define a vector of variable names and then
@@ -108,19 +115,15 @@ for (i in seq_along(alpha_seq)) {
                              result)
 }
 
-## ADD TEST SET RESULTS??
 
 #------------------------------------------------------------------------------#
 
 ## 3. Support Vector Machine with RBF kernel
 
-# Define folds
-folds <-  createFolds(Y_train, k = 10, list = FALSE)
-
 # Define param. grid
 svm_grid <- expand.grid(
-  cost = seq(1e-2, 1e2, length.out = 10),
-  gamma = seq(1e-5, 1, length.out = 10)
+  cost = 10 ** runif(1, -3, 3),
+  gamma = 10 ** runif(1, -4, 1)
 )
 
 # Initiate cluster
@@ -149,7 +152,8 @@ svm_results <- foreach(i = 1:nrow(svm_grid), .combine = bind_rows) %do% {
     pred <- predict(model, X_train[folds == j, ])
     data.frame(gamma = g,
                cost = c,
-               misclassification = 1 - mean(pred == Y_train[folds == j]))
+               misclassification = 1 - mean(pred == Y_train[folds == j]),
+               fold = j)
   }
 }
 
@@ -162,3 +166,74 @@ svm_results %<>%
 
 
 ### Class weights???
+
+#------------------------------------------------------------------------------#
+
+## 4. Random Forests
+
+cvParRF <- function(X, Y, folds, ntrees) {
+  '
+  Use foreach to parallelize RF tree growth for a specified number of trees and
+  estimate OOB error using cross-validation
+  
+  Returns:
+  - df with two columns:
+  - num_trees
+  - misclassification rate
+  '
+  
+  # Begin CV
+  result <- foreach(j = 1:max(folds), .combine = bind_rows) %do% {
+    
+    cat("Fold", j, "of", max(folds), "\n")
+    
+    # Grow trees in parallel and combine into one
+    rf <- foreach(ntree = rep(ntrees/10, 10), .combine = combine, .packages = 'randomForest') %dopar% {
+      
+      # Grow indvl tree on the k-1 folds
+      randomForest(
+        x = X[folds != j, ],
+        y = Y[folds != j],
+        ntree = ntree,
+        mtry = sqrt(dim(X)[2])
+      )
+    }
+    
+    # Predict on out-of-sample fold
+    pred <- predict(rf, X[folds == j, ], type = 'response')
+    
+    # Return df of results
+    data.frame(
+      num_trees = ntrees,
+      misclassification = 1 - mean(pred == Y[folds == j]),
+      fold = j
+    )
+  }
+  
+  # Average error rate across folds
+  result %<>% group_by(num_trees) %>% summarise_at(vars(misclassification), mean)
+  
+  return(result)
+}
+
+cl <- makeCluster(10)
+registerDoParallel(cl)
+
+# Create empty df to store results
+rf_results <- data.frame(
+  num_trees = double(),
+  misclassification = double()
+)
+
+# Begin training
+for (i in c(100, 200)) {
+  
+  cat("Beginning CV for RF of size:", i, "\n")
+  
+  # Train
+  result <- cvParRF(X_train, Y_train, folds, i)
+  
+  # Store outcome
+  rf_results %<>% bind_rows(., result)
+}
+stopCluster(cl)
