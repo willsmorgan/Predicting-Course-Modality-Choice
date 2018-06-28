@@ -18,7 +18,8 @@
 
 rm(list = ls(all = TRUE))
 
-libs <- c("tidyverse", "glmnet", "e1071", "magrittr", "doParallel")
+libs <- c("tidyverse", "glmnet", "e1071", "magrittr", "doParallel", "foreach",
+          'caret')
 lapply(libs, library, character.only = TRUE)
 set.seed(18)
 
@@ -89,7 +90,7 @@ cvLogit <- function(X, Y, alpha = 1, parallel = TRUE, cores = 10) {
 alpha_seq <- seq(0, 1, length.out = 10)
 logit_results <- data.frame(alpha = double(),
                             lambda = double(),
-                            error = double(),
+                            misclassification = double(),
                             up = double(),
                             down = double())
 
@@ -108,17 +109,56 @@ for (i in seq_along(alpha_seq)) {
 }
 
 ## ADD TEST SET RESULTS??
-## Class weights???
+
 #------------------------------------------------------------------------------#
 
-## Support Vector Machine
+## 3. Support Vector Machine with RBF kernel
 
-svm_tune <- tune(method = 'svm',
-                 train.x = X_train,
-                 train.y = Y_train,
-                 ranges = list(
-                   cost = c(0.1, 1, 10, 100, 1000),
-                   gamma = c(0.01, 0.1, 1, 5)),
-                 tunecontrol = tune.control(sampling = 'cross',cross = 10),
-                 scale = FALSE)
+# Define folds
+folds <-  createFolds(Y_train, k = 10, list = FALSE)
 
+# Define param. grid
+svm_grid <- expand.grid(
+  cost = seq(1e-2, 1e2, length.out = 10),
+  gamma = seq(1e-5, 1, length.out = 10)
+)
+
+# Initiate cluster
+cl <- makeCluster(10)
+registerDoParallel(cl)
+
+svm_results <- foreach(i = 1:nrow(svm_grid), .combine = bind_rows) %do% {
+  
+  cat("Beginning iteration", i, "of", nrow(svm_grid), '\n')
+  
+  # Define params. for current iteration
+  c <- svm_grid[i, "cost"]
+  g <- svm_grid[i, "gamma"]
+  
+  # Begin CV
+  out <- foreach(j = 1:max(folds), .combine = bind_rows, .inorder = FALSE, .packages = 'e1071') %dopar% {
+    
+    # Train
+    model <- svm(x = X_train[folds != j, ],
+                 y = Y_train[folds != j],
+                 scale = FALSE,
+                 gamma = g,
+                 cost = c)
+    
+    # Predict and collect results
+    pred <- predict(model, X_train[folds == j, ])
+    data.frame(gamma = g,
+               cost = c,
+               misclassification = 1 - mean(pred == Y_train[folds == j]))
+  }
+}
+
+stopCluster(cl)
+
+# Clean results
+svm_results %<>% 
+  group_by(gamma, cost) %>%
+  summarise(misclassification = mean(misclassification))
+
+
+### Class weights???
