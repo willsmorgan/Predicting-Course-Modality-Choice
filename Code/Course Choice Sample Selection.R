@@ -46,8 +46,8 @@ ps_path <-  "R:\\Data\\ASU Core\\Student Data\\Peoplesoft Data\\"
 # Import
 data <- fread("Data/full_data.csv")
 
-# Set option for creating validation set
-create_val_set = FALSE
+# Set option for creating test set
+create_test_set = TRUE
 
 #------------------------------------------------------------------------------#
 ## 1. Initial drops
@@ -186,29 +186,29 @@ train_index <- createDataPartition(data$icourse,
                                    list = FALSE)
 
 training_set <- data[train_index, ]
-testing_set <- data[-train_index, ]
+val_set <- data[-train_index, ]
 
 # Create second partition for test/val set
-if (create_val_set) {
-  val_index <- createDataPartition(testing_set$icourse,
+if (create_test_set) {
+  test_index <- createDataPartition(val_set$icourse,
                                    p = 0.5,
                                    list = FALSE)
   
-  testing_set <- testing_set[-val_index, ]
-  val_set <- testing_set[val_index, ]
+  testing_set <- val_set[test_index, ]
+  val_set <- val_set[-test_index, ]
 }
 
 # Stdize to the training set and apply to testing
 stdize_vals <- preProcess(training_set, method = c("center", "scale"))
 
 training_set <- predict(stdize_vals, training_set)
-testing_set <- predict(stdize_vals, testing_set)
+val_set <- predict(stdize_vals, val_set)
 
-if (create_val_set) {
-  val_set <- predict(stdize_vals, val_set)
-  saveRDS(val_set, "Data/course choice validation.Rds")
+if (create_test_set) {
+  testing_set <- predict(stdize_vals, testing_set)
+  saveRDS(testing_set, "Data/course choice testing.Rds")
 }
 
 # Export
 saveRDS(training_set, "Data/course choice training.Rds")
-saveRDS(testing_set, "Data/course choice testing.Rds")
+saveRDS(val_set, "Data/course choice validation.Rds")

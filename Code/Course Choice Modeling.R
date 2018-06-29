@@ -37,18 +37,18 @@ source("Code/CV_utils.R")
 
 ## 1. Import and Preprocessing
 training <- readRDS("Data/course choice training.Rds")
-testing <- readRDS("Data/course choice testing.Rds")
+validation <- readRDS("Data/course choice validation.Rds")
 
-## for testing purposes only:
-training %<>% sample_frac(0.01)
-testing %<>% sample_frac(0.01)
+# ## for testing purposes only:
+# training %<>% sample_frac(0.01)
+# validation %<>% sample_frac(0.01)
 
 # Create matrices for model estimation
 X_train <- model.matrix(icourse ~ ., training)
 Y_train <- training[, "icourse"] %>% unlist()
 
-X_test <- model.matrix(icourse ~ ., testing)
-Y_test <- testing[, "icourse"] %>% unlist()
+X_val <- model.matrix(icourse ~ ., validation)
+Y_val <- validation[, "icourse"] %>% unlist()
 
 # Define folds for cross-validation here
 folds <-  createFolds(Y_train, k = 10, list = FALSE)
