@@ -33,15 +33,19 @@ set.seed(18)
 
 # Load models
 source("Code/CV_utils.R")
+
+# Start Log
+log <- file("Logs/Course Choice modeling.txt", open = "wt")
+sink(var_log, type = "output")
 #------------------------------------------------------------------------------#
 
 ## 1. Import and Preprocessing
 training <- readRDS("Data/course choice training.Rds")
 validation <- readRDS("Data/course choice validation.Rds")
 
-# ## for testing purposes only:
-# training %<>% sample_frac(0.01)
-# validation %<>% sample_frac(0.01)
+## for testing purposes only:
+training %<>% sample_frac(0.01)
+validation %<>% sample_frac(0.01)
 
 # Create matrices for model estimation
 X_train <- model.matrix(icourse ~ ., training)
@@ -63,19 +67,31 @@ alpha_seq <-seq(0, 1, length.out = 11)
 # Run CV
 logit_results <- cvLogit(X_train, Y_train, alpha_seq)
 
+# Print results for log
+cat("Logit Results:", "\n")
+
+logit_results %>%
+  arrange(misclassification) %>%
+  select(misclassification, alpha, lambda)
 #------------------------------------------------------------------------------#
 
 ## 3. Support Vector Machine with RBF kernel
 
 # Define param. grid
 svm_grid <- expand.grid(
-  cost = 10 ** runif(1, -3, 3),
-  gamma = 10 ** runif(1, -4, 1)
+  cost = 10 ** runif(5, -3, 3),
+  gamma = 10 ** runif(5, -4, 1)
 )
 
 # Run CV
 svm_results <- cvSVM(X_train, Y_train, svm_grid, folds)
 
+# Print results for log
+cat("SVM Results:", "\n")
+
+svm_results %>%
+  arrange(misclassification) %>%
+  select(misclassification, gamma, cost)
 #------------------------------------------------------------------------------#
 
 ## 4. Random Forests
@@ -90,3 +106,12 @@ rf_results <- foreach(i = 1:length(tree_sizes), .combine = bind_rows, .inorder =
   cvRF(X_train, Y_train, ntrees = tree_sizes[i], folds, parallel = TRUE)
   
 }
+
+# Print results
+cat("Random Forest Results:", "\n")
+
+rf_results %>%
+  arrange(misclassification) %>%
+  select(misclassification, everything())
+
+sink()

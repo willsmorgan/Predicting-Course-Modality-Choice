@@ -3,8 +3,12 @@
 ## Penalized Logit
 ## Support Vector Machines
 ## Random Forests
-
+## XGBoost
 #------------------------------------------------------------------------------#
+libs <- c("glmnet", "e1071", "magrittr", "doParallel", "foreach",
+          "randomForest", "xgboost")
+
+lapply(libs, library, character.only = TRUE)
 
 cvLogit <- function(X, Y, alpha, parallel = TRUE) {
   '
@@ -43,7 +47,7 @@ cvLogit <- function(X, Y, alpha, parallel = TRUE) {
     list(
       alpha = alpha[i],
       lambda = logit$lambda.min,
-      error = logit$cvm[ind],
+      misclassification = logit$cvm[ind],
       up = logit$cvup[ind],
       down = logit$cvlo[ind]
     )
@@ -162,3 +166,43 @@ cvRF <- function(X, Y, ntrees, folds, parallel = TRUE) {
   return(result)
 }
 
+
+cvXGB <- function(X, Y, folds, nrounds) {
+  
+  # Force Y to numeric if inputted as factor
+  if (is.factor(Y)) {
+    Y <- as.numeric(levels(Y))[Y]
+  }
+  
+  result <- foreach(i = 1:max(folds), .combine = bind_rows) %do% {
+    
+    cat("Fold", i, "of", max(folds), "\n")
+    
+    # Train model
+    model <- xgboost(
+      data = X[folds != i, ],
+      label = Y[folds != i],
+      params = list(
+        nthread = detectCores() - 2,
+        objective = 'binary:logistic'
+      ),
+      nrounds = nrounds,
+      verbose = 0
+    )
+    
+    # Predict on Kth fold
+    preds <- as.numeric(predict(model, X[folds == i, ]) >= 0.5)
+    
+    # Spit out results
+    data.frame(
+      misclassification = 1 - mean(preds == Y[folds == i]),
+      fold = i
+    )
+  }
+  
+  # Average error across folds
+  result %<>% summarise_at(vars(misclassification), mean)
+  
+  return(result)
+  
+}

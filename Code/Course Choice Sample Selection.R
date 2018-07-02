@@ -130,7 +130,7 @@ data %<>%
 
 ## 4. Variable Summary Log
 
-var_log <- file("Course Choice sample selection log.txt", open = "wt")
+var_log <- file("Logs/Course Choice sample selection.txt", open = "wt")
 sink(var_log, type = "output")
 
 cat("PRE-TRIMMING SUMMARIES", "\n")
@@ -153,7 +153,6 @@ sapply(data, function(x) {
 ## campus needs Tempe as reference
 ## fed_efc has upper values that need to be trimmed
 ## trnsfr_credit_accpt has negative values and absurdly high values
-
 
 # Final cleaning
 data %<>%
