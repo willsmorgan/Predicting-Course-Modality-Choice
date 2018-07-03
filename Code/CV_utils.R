@@ -15,11 +15,15 @@ cvLogit <- function(X, Y, alpha, parallel = TRUE) {
   Train a cross-validated penalized logit model option for Ridge/Enet/Lasso
   and parallelized performance
   
+  Args:
+  - X --> matrix of predictors
+  - Y --> vector/factor of outcomes
+  - alpha --> vector of mixing parameter values to test
   
   Returns:
-  - best penalty value
-  - tested mixing parameter value
-  - misclassification performance
+  - best penalty value (lambda)
+  - tested mixing parameter value (alpha)
+  - cv`d misclassification rate
   '
   
   if (parallel) {
@@ -59,13 +63,21 @@ cvLogit <- function(X, Y, alpha, parallel = TRUE) {
   return(result)
 }
 
-cvSVM <- function(X, Y, grid, folds, parallel = TRUE) {
+cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE) {
   '
   Use foreach to parallelize SVM cross-validation for parameter tuning
   
+  Args:
+  - X --> matrix of predictors
+  - Y --> vector/factor of outcomes
+  - kernel --> SVM Kernel, either "rbf" or "linear"
+  - grid --> df of parameter combinations to test
+  - folds --> user-supplied vector of folds
+
+
   Returns:
     - df with three columns:
-      - gamma
+      - gamma (if kernel rbf)
       - cost
       - misclassification rate
   '
@@ -75,39 +87,63 @@ cvSVM <- function(X, Y, grid, folds, parallel = TRUE) {
     registerDoParallel(cl)
   }
   
-  svm_results <- foreach(i = 1:nrow(svm_grid), .combine = bind_rows) %do% {
+  svm_results <- foreach(i = 1:nrow(grid), .combine = bind_rows) %do% {
     
-    cat("Testing parameter combination", i, "of", nrow(svm_grid), '\n')
+    cat("Testing parameter combination", i, "of", nrow(grid), '\n')
     
     # Define params. for current iteration
-    c <- svm_grid[i, "cost"]
-    g <- svm_grid[i, "gamma"]
+    c <- grid[i, "cost"]
     
+    if (kernel == "rbf") {
+      g <- grid[i, "gamma"]
+    }
+      
     # Begin CV
     foreach(j = 1:max(folds), .combine = bind_rows, .inorder = FALSE, .packages = 'e1071') %dopar% {
       
       # Train
-      model <- svm(x = X[folds != j, ],
-                   y = Y[folds != j],
-                   scale = FALSE,
+      if (kernel == 'rbf') {
+        model <- svm(x = X[folds != j, ],
+                     y = Y[folds != j],
+                     scale = FALSE,
+                     gamma = g,
+                     cost = c,
+                     kernel = 'radial')
+        
+        # Predict and collect results
+        pred <- predict(model, X[folds == j, ])
+        data.frame(misclassification = 1 - mean(pred == Y[folds == j]),
                    gamma = g,
-                   cost = c)
-      
-      # Predict and collect results
-      pred <- predict(model, X[folds == j, ])
-      data.frame(gamma = g,
-                 cost = c,
-                 misclassification = 1 - mean(pred == Y[folds == j]),
-                 fold = j)
+                   cost = c,
+                   fold = j)
+      } else {
+        model <- svm(x = X[folds != j, ],
+                     y = Y[folds != j],
+                     scale = FALSE,
+                     cost = c,
+                     kernel = 'linear')
+        
+        # Predict and collect results
+        pred <- predict(model, X[folds == j, ])
+        data.frame(misclassification = 1 - mean(pred == Y[folds == j]),
+                   cost = c,
+                   fold = j)
+      }
     }
   }
   
   if (parallel) {on.exit(stopCluster(cl))}
   
   # Clean results
-  svm_results %<>%
-    group_by(gamma, cost) %>%
-    summarise(misclassification = mean(misclassification))
+  if (kernel == 'rbf') {
+    svm_results %<>%
+      group_by(gamma, cost) %>%
+      summarise_at(vars(misclassification), mean)
+  } else {
+    svm_results %<>%
+      group_by(cost) %>%
+      summarise_at(vars(misclassification), mean)
+  }
   
   return(svm_results)
   
@@ -118,11 +154,18 @@ cvRF <- function(X, Y, ntrees, folds, parallel = TRUE) {
   Use foreach to parallelize RF tree growth for a specified number of trees and
   estimate OOB error using cross-validation
   
+  Args:
+  - X --> matrix of predictors
+  - Y --> vector/factor of outcomes
+  - ntrees --> number of trees to grow in forest
+  - folds --> user-supplied vector of folds
+
   Returns:
   - df with two columns:
   - num_trees
   - misclassification rate
   '
+  
   if (parallel) {
     cl <- makeCluster(detectCores() - 2)
     registerDoParallel(cl)
@@ -166,43 +209,80 @@ cvRF <- function(X, Y, ntrees, folds, parallel = TRUE) {
   return(result)
 }
 
+cvXGB <- function(X, Y, grid, folds, parallel = TRUE) {
+  '
+  Use foreach to parallelize xgboost for hyperparameter tuning with CV
 
-cvXGB <- function(X, Y, folds, nrounds) {
-  
+  Args:
+  - X --> matrix of predictors
+  - Y --> vector/factor of outcomes
+  - grid --> df of parameter combinations to test
+  - folds --> user-supplied vector of folds
+
+  Returns:
+  - df specifying:
+    - tested parameters
+    - misclassification rate
+  '
   # Force Y to numeric if inputted as factor
   if (is.factor(Y)) {
     Y <- as.numeric(levels(Y))[Y]
   }
   
-  result <- foreach(i = 1:max(folds), .combine = bind_rows) %do% {
-    
-    cat("Fold", i, "of", max(folds), "\n")
-    
-    # Train model
-    model <- xgboost(
-      data = X[folds != i, ],
-      label = Y[folds != i],
-      params = list(
-        nthread = detectCores() - 2,
-        objective = 'binary:logistic'
-      ),
-      nrounds = nrounds,
-      verbose = 0
-    )
-    
-    # Predict on Kth fold
-    preds <- as.numeric(predict(model, X[folds == i, ]) >= 0.5)
-    
-    # Spit out results
-    data.frame(
-      misclassification = 1 - mean(preds == Y[folds == i]),
-      fold = i
-    )
+  # Initialize cluster
+  if (parallel) {
+    cl <- makeCluster(detectCores() - 2)
+    registerDoParallel(cl)
   }
   
-  # Average error across folds
-  result %<>% summarise_at(vars(misclassification), mean)
+  # Iterate through parameter grid
+  results <- foreach(i = 1:nrow(grid), .combine = bind_rows) %do% {
+    
+    cat("Testing parameter combination", i, "of", nrow(grid), '\n')
+    
+    # Define parameters for current iteration    
+    depth <- grid[i, "depth"]
+    gamma <- grid[i, "gamma"]
+    
+    # Begin CV
+    foreach(j = 1:max(folds), .combine = bind_rows, .packages = 'xgboost') %dopar% {
+      
+      # Train model
+      model <- xgboost(
+        data = X[folds != j, ],
+        label = Y[folds != j],
+        params = list(
+          nthread = 1,
+          objective = 'binary:logistic',
+          max_depth = depth,
+          gamma = gamma
+        ),
+        nrounds = 250,
+        early_stopping_rounds = 10,
+        verbose = 0
+      )
+      
+      # Predict on Kth fold
+      preds <- as.numeric(predict(model, X[folds == j, ]) >= 0.5)
+      
+      # Spit out results
+      data.frame(
+        misclassification = 1 - mean(preds == Y[folds == j]),
+        max_depth = depth,
+        gamma = gamma,
+        fold = j
+      )
+    }
+  }
   
-  return(result)
+  if (parallel) {on.exit(stopCluster(cl))}
+  
+  # Average error across folds
+  results %<>%
+    group_by(gamma, max_depth) %>%
+    summarise_at(vars(misclassification), mean)
+  
+  return(results)
   
 }
+
