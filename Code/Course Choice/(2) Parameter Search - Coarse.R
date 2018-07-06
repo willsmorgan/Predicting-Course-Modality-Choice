@@ -1,4 +1,4 @@
-### Course Choice Modeling
+### Parameter Search - Coarse
 ### Author: William Morgan
 
 ## Purpose:
@@ -61,7 +61,7 @@ folds <-  createFolds(Y_train, k = 10, list = FALSE)
 ## 2. Penalized Logit
 
 # Define list of mixing parameter values to test
-alpha_seq <-seq(0, 1, length.out = 11)
+alpha_seq <-seq(0, 1, length.out = 50)
 
 # Run CV
 logit_results <- cvLogit(X_train, Y_train, alpha_seq)
@@ -76,54 +76,58 @@ logit_results %>%
   head() %>%
   write.table(., file = log, row.names = FALSE)
 
+write_csv(logit_results, "Results/Coarse Search/logit.csv")
 #------------------------------------------------------------------------------#
 
 ## 3.1: Support Vector Machine with RBF kernel
 
-# # Define param. grid
-# svm_grid <- expand.grid(
-#   cost = 10 ** runif(5, -3, 3),
-#   gamma = 10 ** runif(5, -4, 1)
-# )
-# 
-# # Run CV
-# rbf_svm_results <- cvSVM(X_train, Y_train, kernel = 'rbf', svm_grid, folds)
-# 
-# # Print results for log
-# cat("RBF SVM Results:", file = log, sep = '\n')
-# 
-# rbf_svm_results %>%
-#   arrange(misclassification) %>%
-#   select(misclassification, gamma, cost) %>%
-#   mutate_all(function(x) round(x, 5)) %>%
-#   head() %>%
-#   write.table(., file = log, row.names = FALSE)
-# 
-# #------------------------------------------------------------------------------#
-# 
-# ## 3.2: SVM with Linear kernel
-# 
-# # Parameters
-# svm_grid <- expand.grid(cost = 10 ** runif(5, -3, 3))
-# 
-# # Run CV
-# lin_svm_results <- cvSVM(X_train, Y_train, kernel = 'linear', grid = g, folds)
-# 
-# # Print results
-# cat("Linear SVM Results:", file = log, sep = '\n')
-# 
-# lin_svm_results %>%
-#   arrange(misclassification) %>%
-#   select(misclassification, everything()) %>%
-#   mutate_all(function(x) round(x, 5)) %>%
-#   head() %>%
-#   write.table(., file = log, row.names = FALSE)
+# Define param. grid
+svm_grid <- expand.grid(
+  cost = 10 ** runif(5, -3, 3),
+  gamma = 10 ** runif(5, -4, 1)
+)
+
+# Run CV
+rbf_svm_results <- cvSVM(X_train, Y_train, kernel = 'rbf', svm_grid, folds)
+
+# Print results for log
+cat("RBF SVM Results:", file = log, sep = '\n')
+
+rbf_svm_results %>%
+  arrange(misclassification) %>%
+  select(misclassification, gamma, cost) %>%
+  mutate_all(function(x) round(x, 5)) %>%
+  head() %>%
+  write.table(., file = log, row.names = FALSE)
+
+write_csv(rbf_svm_results, "Results/Coarse Search/rbf_svm.csv")
+#------------------------------------------------------------------------------#
+
+## 3.2: SVM with Linear kernel
+
+# Parameters
+svm_grid <- expand.grid(cost = 10 ** runif(25, -3, 3))
+
+# Run CV
+lin_svm_results <- cvSVM(X_train, Y_train, kernel = 'linear', svm_grid, folds)
+
+# Print results
+cat("Linear SVM Results:", file = log, sep = '\n')
+
+lin_svm_results %>%
+  arrange(misclassification) %>%
+  select(misclassification, everything()) %>%
+  mutate_all(function(x) round(x, 5)) %>%
+  head() %>%
+  write.table(., file = log, row.names = FALSE)
+
+write_csv(lin_svm_results, "Results/Coarse Search/lin_svm.csv")
 #------------------------------------------------------------------------------#
 
 ## 4. Random Forests
 
 # Define parameter search
-tree_sizes <- c(100, 200, 500, 1000)
+tree_sizes <- seq(100, 1500, by = 100)
 
 # Run CV
 rf_results <- foreach(i = 1:length(tree_sizes), .combine = bind_rows, .inorder = FALSE) %do% {
@@ -143,14 +147,15 @@ rf_results %>%
   head() %>%
   write.table(., file = log, row.names = FALSE)
 
+write_csv(rf_results, "Results/Coarse Search/rf.csv")
 #------------------------------------------------------------------------------#
 
 ## 5. Boosted Classifier
 
 # Define param. grid
 boost_grid <- expand.grid(
-  depth = c(1, 4, 6, 10),
-  gamma = 10 ** runif(3, -2, 2)
+  depth = seq(1, 10, by = 1),
+  gamma = 10 ** runif(5, -2, 2)
 )
 
 # Run CV
@@ -166,5 +171,12 @@ boost_results %>%
   head() %>%
   write.table(., file = log, row.names = FALSE)
 
+write_csv(boost_results, "Results/Coarse Search/boost.csv")
+
+#------------------------------------------------------------------------------#
+
+## 6. Close Log and run initial Parameter Selection review
 
 close(log)
+
+source("Code/Course Choice/(2A) Parameter Selection - Coarse.R")
