@@ -12,7 +12,7 @@ lapply(libs, library, character.only = TRUE)
 
 cvLogit <- function(X, Y, alpha, parallel = TRUE) {
   '
-  Train a cross-validated penalized logit model option for Ridge/Enet/Lasso
+  Train a cross-validated penalized logit model; option for Ridge/Enet/Lasso
   and parallelized performance
   
   Args:

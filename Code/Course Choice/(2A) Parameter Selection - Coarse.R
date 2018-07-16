@@ -39,7 +39,7 @@ ggsave("Graphics/Coarse Search/logit.png")
 
 # Linear SVM
 lin_svm %>%
-  ggplot(aes(log10(cost), misclassification)) + 
+  ggplot(aes(log10(cost), misclassification)) +
   geom_point() +
   labs(x = "log_10(cost)",
        y = "CV-Misclassification Rate",
@@ -49,15 +49,15 @@ lin_svm %>%
 ggsave("Graphics/Coarse Search/lin_svm.png")
 
 # RBF SVM
-rbf_svm %>%
-  ggplot(aes(log10(cost), misclassification)) + 
-  geom_point(aes(color = log10(gamma))) +
-  labs(x = "log_10(cost)",
-       y = "CV-Misclassification Rate",
-       title = "RBF SVM Results") +
-  theme(plot.title = element_text(hjust = 0.5))
-
-ggsave("Graphics/Coarse Search/rbf_svm.png")
+# rbf_svm %>%
+#   ggplot(aes(log10(cost), misclassification)) +
+#   geom_point(aes(color = log10(gamma))) +
+#   labs(x = "log_10(cost)",
+#        y = "CV-Misclassification Rate",
+#        title = "RBF SVM Results") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# 
+# ggsave("Graphics/Coarse Search/rbf_svm.png")
 
 # RF Results
 rf %>%
@@ -86,13 +86,18 @@ ggsave("Graphics/Coarse Search/boost.png")
 
 ## 2. Aggregate Results
 
-agg_results <- tibble(
-  method = c("Logit", "Linear SVM", "RBF SVM",
-             "Random Forest", "Boosting"),
-  result = c(mean(logit$misclassification), mean(lin_svm$misclassification),
-             mean(rbf_svm$misclassification), mean(rf$misclassification),
-             mean(boost$misclassification)))
+# agg_results <- tibble(
+#   method = c("Logit", "Linear SVM", "RBF SVM",
+#              "Random Forest", "Boosting"),
+#   result = c(mean(logit$misclassification), mean(lin_svm$misclassification),
+#              mean(rbf_svm$misclassification), mean(rf$misclassification),
+#              mean(boost$misclassification)))
   
+agg_results <- tibble(
+  method = c("Logit", "Linear SVM", "Random Forest", "Boosting"),
+  result = c(mean(logit$misclassification), mean(lin_svm$misclassification),
+             mean(rf$misclassification), mean(boost$misclassification)))
+
 agg_results %>%
   ggplot(aes(reorder(method, -result), result)) +
   geom_bar(stat = 'identity') +

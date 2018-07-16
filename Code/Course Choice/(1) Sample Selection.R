@@ -1,4 +1,4 @@
-### Data Setup - Course Choice Model
+### Sample Selection - Course Choice Model
 ### Author: William Morgan
 
 ## Purpose:
@@ -22,15 +22,17 @@
 # terms before summer 11 and winter terms
 # undefined ethnicity
 # missing pell eligibility
+# no hybrid courses
 
 
 ## Organization:
 # 0. Setup - libraries, paths, import
 # 1. Initial drops - drop specific observations based on unwanted values (see above list)
 # 2. Course drops - keep courses that have at least one ICO and one F2F section in the same term
-# 3. Final cleaning - missing values, outliers, and factor variables
-# 4. Variable Summaries - log summaries of each variable for later inspection
-# 5. Splitting and Standardizing
+# 3. Feature creation - add new variables not already in data set
+# 4. Final cleaning - missing values, outliers, and factor variables
+# 5. Variable Summaries - log summaries of each variable for later inspection
+# 6. Splitting and Standardizing
 
 #------------------------------------------------------------------------------#
 
@@ -40,17 +42,27 @@ rm(list = ls())
 libs <- c("tidyverse", "data.table", "magrittr", "caret")
 lapply(libs, library, character.only = TRUE)
 
-# PS rootpath
-ps_path <-  "R:\\Data\\ASU Core\\Student Data\\Peoplesoft Data\\"
-
 # Import
 data <- fread("Data/full_data.csv")
 
 # Set option for creating test set
 create_test_set = TRUE
 
+# Open Log
+#log <- file("Logs/Course Choice sample selection.txt", open = "wt")
+write_lines('Course Choice Sample Selection Log', path = log)
+
 #------------------------------------------------------------------------------#
-## 1. Initial drops
+## 1. Feature creation
+
+# Run script to create new features not already present in data
+source("Code/Course Choice/(1A) Feature Creation.R")
+
+#------------------------------------------------------------------------------#
+## 2. Initial drops
+
+cat("Initial number of observations: ", nrow(data), "\n", file = log)
+
 data %<>%
   filter(strm >= 2114 & strm != 2149,
          acad_level %in% c("Freshman", "Sophomore", "Junior", "Senior"),
@@ -67,22 +79,29 @@ data %<>%
          pell_eligibility != "",
          ethnicity != "NR",
          !is.na(first_gen),
+         instruction_mode != "HY",
          crse_grade_off %in% c("A", "A-", "A+", "B", "B+", "B-",
                                "C", "C+", "C-", "D", "E", "W"),
          session_code %in% c("A", "B", "C"))
-         
+
+cat("Number of observations after initial drops: ", nrow(data), "\n", file = log)
+
 #------------------------------------------------------------------------------#
-## 2. Course Drops
+## 3. Course Drops
 
 # Run code to either create or load appropriate course list
-source("Code/Course Eligibility.R")
+source("Code/Course Choice/(1B) Course Eligibility.R")
 course_list %<>% select(course, strm)
 
 # Join course list
-data %<>% inner_join(., course_list, by = c("course", "strm"))
+data %<>% semi_join(., course_list, by = c("course", "strm"))
+
+rm(course_list)
+
+cat("Number of observations after selecting eligible courses: ", nrow(data), "\n", file = log)
 
 #------------------------------------------------------------------------------#
-## 3. Outliers, missing values, and factor variables
+## 4. Outliers, missing values, and factor variables
 
 # Define levels for all factors
 ac <- c("Freshman", "sophomore", "Junior", "Senior","Post-Bacc Undergraduate", "Non-degree Undergraduate")
@@ -105,7 +124,8 @@ data %<>%
 
 # Make sure indicator variables are factorized
 ind_vars <- c("icourse", "first_gen", "in_state", "gender", "pell_eligible", 
-              "required_course", "took_course", "took_instructor", "transfer")
+              "required_course", "took_course", "took_instructor", "transfer",
+              "upper_division", "double_major")
 
 data %<>%
   mutate(pell_eligible = if_else(pell_eligibility == "Y", 1, 0),
@@ -116,38 +136,43 @@ data %<>%
   mutate_at(vars(ind_vars), function(x) relevel(x, "0"))
 
 # Define columns to keep
-cols <- c("acad_level","age_at_class_start", "campus","course_diff_index",
-          "course_load", "ethnicity", "fed_efc", "first_gen", "gender", "icourse", "in_state",
-          "nth_term", "pell_eligible", "prev_term_gpa", "required_course", "session",
-          "strm", "took_instructor", "took_course", "transfer", "trnsfr_credit_accpt")
+cols <- c("acad_level", "age_at_class_start", "campus", "course_diff_index", 
+          "course_load", "cummean_grade_prev", "double_major", "dual_enrolled",
+          "ethnicity", "ever_pell", "fac_diff_index", "fed_efc", "first_gen", 
+          "gender", "icourse", "in_state", "incoming_gpa", "include_in_gpa", "nth_term", "num_ico_taken",
+          "pell_eligible", "prev_term_gpa", "prop_req_crses",
+          "required_course", "school_year", "stem_degree", "term", "tot_req_crses_bot",
+          "total_enrolled", "transfer", "trnsfr_credit_accpt")
 
 # Drop observations with missing values in any column
 data %<>%
-  select(cols) %>%
+  select(one_of(cols)) %>%
   filter_all(all_vars(!is.na(.)))                        # HUGE sweep for all missing values
 
+cat("Number of observations after filtering on missing values: ", nrow(data), '\n', file = log)
+
 #------------------------------------------------------------------------------#
+## 5. Variable Summary Log
 
-## 4. Variable Summary Log
-
-var_log <- file("Logs/Course Choice sample selection.txt", open = "wt")
-sink(var_log, type = "output")
-
-cat("PRE-TRIMMING SUMMARIES", "\n")
+cat('\n\n\n', file = log)
+cat("PRE-TRIMMING SUMMARIES", '\n', file = log)
 
 ## Make sure all factors have the reference level you want
 data %>% 
   select_if(is.factor) %>%
   sapply(., levels)
 
-# Check for outlandish values with a summary of all variables
-sapply(data, function(x) {
-  if (is.numeric(x)) {
-    summary(x)
+# Send summaries of variables to the log
+for (i in seq_along(data)){
+  if (is.numeric(data[, i])) {
+    cat(names(data)[i], file = log)
+    capture.output(summary(data[, i]), file = log)
   } else {
-    table(x)
+    cat(names(data)[i], file = log)
+    capture.output(table(data[, i]), file = log)
   }
-})
+}
+
 
 ## acad_level needs Freshmen as reference
 ## campus needs Tempe as reference
@@ -163,21 +188,24 @@ data %<>%
          trnsfr_credit_accpt <= quantile(trnsfr_credit_accpt, 0.95)) %>%
   select(order(colnames(.)))
 
-cat("POST-TRIMMING SUMMARIES", "\n")
+cat('\n\n\n', file = log)
+cat("POST-TRIMMING SUMMARIES", "\n", file = log)
 
-sapply(data, function(x) {
-  if (is.numeric(x)) {
-    summary(x)
+for (i in seq_along(data)){
+  if (is.numeric(data[, i])) {
+    cat(names(data)[i], file = log)
+    capture.output(summary(data[, i]), file = log)
   } else {
-    table(x)
+    cat(names(data)[i], file = log)
+    capture.output(table(data[, i]), file = log)
   }
-})
+}
 
-# close log
-sink()
+# Close log
+close(log)
 
 #------------------------------------------------------------------------------#
-## 5. Splitting and Standardizing
+## 6. Splitting and Standardizing
 
 # Create partition and split for train/test
 train_index <- createDataPartition(data$icourse,

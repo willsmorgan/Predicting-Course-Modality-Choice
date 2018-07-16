@@ -77,52 +77,53 @@ logit_results %>%
   write.table(., file = log, row.names = FALSE)
 
 write_csv(logit_results, "Results/Coarse Search/logit.csv")
+
+# #------------------------------------------------------------------------------#
+# 
+# ## 3.1: Support Vector Machine with RBF kernel
+# 
+# # Define param. grid
+# svm_grid <- expand.grid(
+#   cost = 10 ** runif(5, -3, 3),
+#   gamma = 10 ** runif(5, -4, 1)
+# )
+# 
+# # Run CV
+# rbf_svm_results <- cvSVM(X_train, Y_train, kernel = 'rbf', svm_grid, folds)
+# 
+# # Print results for log
+# cat("RBF SVM Results:", file = log, sep = '\n')
+# 
+# rbf_svm_results %>%
+#   arrange(misclassification) %>%
+#   select(misclassification, gamma, cost) %>%
+#   mutate_all(function(x) round(x, 5)) %>%
+#   head() %>%
+#   write.table(., file = log, row.names = FALSE)
+# 
+# write_csv(rbf_svm_results, "Results/Coarse Search/rbf_svm.csv")
 #------------------------------------------------------------------------------#
-
-## 3.1: Support Vector Machine with RBF kernel
-
-# Define param. grid
-svm_grid <- expand.grid(
-  cost = 10 ** runif(5, -3, 3),
-  gamma = 10 ** runif(5, -4, 1)
-)
-
-# Run CV
-rbf_svm_results <- cvSVM(X_train, Y_train, kernel = 'rbf', svm_grid, folds)
-
-# Print results for log
-cat("RBF SVM Results:", file = log, sep = '\n')
-
-rbf_svm_results %>%
-  arrange(misclassification) %>%
-  select(misclassification, gamma, cost) %>%
-  mutate_all(function(x) round(x, 5)) %>%
-  head() %>%
-  write.table(., file = log, row.names = FALSE)
-
-write_csv(rbf_svm_results, "Results/Coarse Search/rbf_svm.csv")
-#------------------------------------------------------------------------------#
-
-## 3.2: SVM with Linear kernel
-
-# Parameters
-svm_grid <- expand.grid(cost = 10 ** runif(25, -3, 3))
-
-# Run CV
-lin_svm_results <- cvSVM(X_train, Y_train, kernel = 'linear', svm_grid, folds)
-
-# Print results
-cat("Linear SVM Results:", file = log, sep = '\n')
-
-lin_svm_results %>%
-  arrange(misclassification) %>%
-  select(misclassification, everything()) %>%
-  mutate_all(function(x) round(x, 5)) %>%
-  head() %>%
-  write.table(., file = log, row.names = FALSE)
-
-write_csv(lin_svm_results, "Results/Coarse Search/lin_svm.csv")
-#------------------------------------------------------------------------------#
+# 
+# ## 3.2: SVM with Linear kernel
+# 
+# # Parameters
+# svm_grid <- expand.grid(cost = 10 ** runif(25, -3, 3))
+# 
+# # Run CV
+# lin_svm_results <- cvSVM(X_train, Y_train, kernel = 'linear', svm_grid, folds)
+# 
+# # Print results
+# cat("Linear SVM Results:", file = log, sep = '\n')
+# 
+# lin_svm_results %>%
+#   arrange(misclassification) %>%
+#   select(misclassification, everything()) %>%
+#   mutate_all(function(x) round(x, 5)) %>%
+#   head() %>%
+#   write.table(., file = log, row.names = FALSE)
+# 
+# write_csv(lin_svm_results, "Results/Coarse Search/lin_svm.csv")
+# #------------------------------------------------------------------------------#
 
 ## 4. Random Forests
 
