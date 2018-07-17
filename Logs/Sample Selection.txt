@@ -1,0 +1,336 @@
+Course Choice Sample Selection Log
+
+Initial number of observations:  8845423 
+
+Number of observations after initial drops:  2395288 
+
+Number of observations after selecting eligible courses:  1022512 
+
+Number of observations after filtering on missing values:  1015876 
+
+
+PRE-TRIMMING SUMMARIES
+
+ acad_level
+   Junior    Senior Sophomore  Freshman 
+   290321    237646    246363    241546 
+
+      age       
+ Min.   :13.00  
+ 1st Qu.:19.00  
+ Median :20.00  
+ Mean   :21.12  
+ 3rd Qu.:22.00  
+ Max.   :80.00  
+
+      age2       
+ Min.   : 169.0  
+ 1st Qu.: 361.0  
+ Median : 400.0  
+ Mean   : 466.3  
+ 3rd Qu.: 484.0  
+ Max.   :6400.0  
+
+ campus
+ TEMPE   WEST   POLY  DTPHX 
+708806  70758  54814 181498 
+
+      cdi       
+ Min.   :0.000  
+ 1st Qu.:2.790  
+ Median :3.016  
+ Mean   :3.010  
+ 3rd Qu.:3.219  
+ Max.   :4.319  
+
+      cdi2       
+ Min.   : 0.000  
+ 1st Qu.: 7.784  
+ Median : 9.098  
+ Mean   : 9.167  
+ 3rd Qu.:10.361  
+ Max.   :18.654  
+
+  course_load   
+ Min.   : 1.00  
+ 1st Qu.:14.00  
+ Median :15.00  
+ Mean   :15.17  
+ 3rd Qu.:17.00  
+ Max.   :24.00  
+
+ ethnicity
+     White   Hispanic American I      Black      Asian  2 or More 
+    570717     252204      15337      56604      77262      43752 
+
+    fed_efc      
+ Min.   :     0  
+ 1st Qu.:     0  
+ Median :  3295  
+ Mean   : 16324  
+ 3rd Qu.: 17438  
+ Max.   :999999  
+
+ first_gen
+     0      1 
+630230 385646 
+
+ gender
+     0      1 
+523048 492828 
+
+ icourse
+     0      1 
+610500 405376 
+
+ in_state
+     0      1 
+188495 827381 
+
+ include_in_gpa
+     0      1 
+116623 899253 
+
+ mult_degree
+     0      1 
+878316 137560 
+
+    nth_term     
+ Min.   : 1.000  
+ 1st Qu.: 2.000  
+ Median : 3.000  
+ Mean   : 3.623  
+ 3rd Qu.: 5.000  
+ Max.   :16.000  
+
+ num_ico_taken   
+ Min.   : 0.000  
+ 1st Qu.: 0.000  
+ Median : 1.000  
+ Mean   : 2.499  
+ 3rd Qu.: 4.000  
+ Max.   :58.000  
+
+ pell_eligible
+     0      1 
+601583 414293 
+
+ prev_term_gpa  
+ Min.   :0.000  
+ 1st Qu.:2.790  
+ Median :3.200  
+ Mean   :3.138  
+ 3rd Qu.:3.590  
+ Max.   :4.330  
+
+ prev_term_gpa2  
+ Min.   : 0.000  
+ 1st Qu.: 7.784  
+ Median :10.240  
+ Mean   :10.255  
+ 3rd Qu.:12.888  
+ Max.   :18.749  
+
+ required_course
+     0      1 
+511709 504167 
+
+ stem_degree
+     0      1 
+805197 210679 
+
+ tot_req_crses_bot
+ Min.   : 0.000   
+ 1st Qu.: 0.000   
+ Median : 5.000   
+ Mean   : 7.151   
+ 3rd Qu.:11.000   
+ Max.   :76.000   
+
+ total_enrolled 
+ Min.   :  1.0  
+ 1st Qu.: 35.0  
+ Median : 78.0  
+ Mean   :129.4  
+ 3rd Qu.:169.0  
+ Max.   :906.0  
+
+ transfer
+     0      1 
+684512 331364 
+
+ trf_creds_first_term
+ Min.   :  0.00      
+ 1st Qu.:  0.00      
+ Median :  8.00      
+ Mean   : 22.06      
+ 3rd Qu.: 46.00      
+ Max.   :456.00      
+
+ upper_division
+     0      1 
+608421 407455 
+
+
+
+POST-TRIMMING SUMMARIES 
+
+ acad_level
+ Freshman    Junior    Senior Sophomore 
+   222042    268442    204927    231703 
+
+      age       
+ Min.   :13.00  
+ 1st Qu.:19.00  
+ Median :20.00  
+ Mean   :20.98  
+ 3rd Qu.:22.00  
+ Max.   :80.00  
+
+      age2       
+ Min.   : 169.0  
+ 1st Qu.: 361.0  
+ Median : 400.0  
+ Mean   : 458.1  
+ 3rd Qu.: 484.0  
+ Max.   :6400.0  
+
+ campus
+ TEMPE   WEST   POLY  DTPHX 
+645378  64961  49331 167444 
+
+      cdi       
+ Min.   :0.000  
+ 1st Qu.:2.790  
+ Median :3.016  
+ Mean   :3.010  
+ 3rd Qu.:3.219  
+ Max.   :4.319  
+
+      cdi2       
+ Min.   : 0.000  
+ 1st Qu.: 7.784  
+ Median : 9.098  
+ Mean   : 9.166  
+ 3rd Qu.:10.361  
+ Max.   :18.654  
+
+  course_load   
+ Min.   : 1.00  
+ 1st Qu.:14.00  
+ Median :16.00  
+ Mean   :15.19  
+ 3rd Qu.:17.00  
+ Max.   :24.00  
+
+ ethnicity
+     White   Hispanic American I      Black      Asian  2 or More 
+    509334     239421      14077      52740      71713      39829 
+
+    fed_efc     
+ Min.   :    0  
+ 1st Qu.:    0  
+ Median : 2648  
+ Mean   : 9900  
+ 3rd Qu.:14469  
+ Max.   :68590  
+
+ first_gen
+     0      1 
+562830 364284 
+
+ gender
+     0      1 
+480219 446895 
+
+ icourse
+     0      1 
+556949 370165 
+
+ in_state
+     0      1 
+164120 762994 
+
+ include_in_gpa
+     0      1 
+107049 820065 
+
+ mult_degree
+     0      1 
+799453 127661 
+
+    nth_term     
+ Min.   : 1.000  
+ 1st Qu.: 2.000  
+ Median : 3.000  
+ Mean   : 3.681  
+ 3rd Qu.: 5.000  
+ Max.   :16.000  
+
+ num_ico_taken   
+ Min.   : 0.000  
+ 1st Qu.: 0.000  
+ Median : 1.000  
+ Mean   : 2.545  
+ 3rd Qu.: 4.000  
+ Max.   :58.000  
+
+ pell_eligible
+     0      1 
+532843 394271 
+
+ prev_term_gpa  
+ Min.   :0.000  
+ 1st Qu.:2.780  
+ Median :3.190  
+ Mean   :3.133  
+ 3rd Qu.:3.590  
+ Max.   :4.330  
+
+ prev_term_gpa2  
+ Min.   : 0.000  
+ 1st Qu.: 7.728  
+ Median :10.176  
+ Mean   :10.221  
+ 3rd Qu.:12.888  
+ Max.   :18.749  
+
+ required_course
+     0      1 
+469219 457895 
+
+ stem_degree
+     0      1 
+735085 192029 
+
+ tot_req_crses_bot
+ Min.   : 0.000   
+ 1st Qu.: 0.000   
+ Median : 5.000   
+ Mean   : 7.302   
+ 3rd Qu.:11.000   
+ Max.   :76.000   
+
+ total_enrolled 
+ Min.   :  1.0  
+ 1st Qu.: 35.0  
+ Median : 78.0  
+ Mean   :129.5  
+ 3rd Qu.:169.0  
+ Max.   :906.0  
+
+ transfer
+     0      1 
+638424 288690 
+
+ trf_creds_first_term
+ Min.   : 0.00       
+ 1st Qu.: 0.00       
+ Median : 6.66       
+ Mean   :20.18       
+ 3rd Qu.:41.00       
+ Max.   :64.00       
+
+ upper_division
+     0      1 
+556850 370264 
