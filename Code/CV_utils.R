@@ -10,7 +10,7 @@ libs <- c("glmnet", "e1071", "magrittr", "doParallel", "foreach",
 
 lapply(libs, library, character.only = TRUE)
 
-cvLogit <- function(X, Y, alpha, parallel = TRUE) {
+cvLogit <- function(X, Y, alpha, parallel = TRUE, ncores = 10) {
   '
   Train a cross-validated penalized logit model; option for Ridge/Enet/Lasso
   and parallelized performance
@@ -27,7 +27,7 @@ cvLogit <- function(X, Y, alpha, parallel = TRUE) {
   '
   
   if (parallel) {
-    cl <- makeCluster(detectCores() - 2)
+    cl <- makeCluster(ncores)
     registerDoParallel(cl)
   }
   
@@ -63,7 +63,7 @@ cvLogit <- function(X, Y, alpha, parallel = TRUE) {
   return(result)
 }
 
-cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE) {
+cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE, ncores = 10) {
   '
   Use foreach to parallelize SVM cross-validation for parameter tuning
   
@@ -83,7 +83,7 @@ cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE) {
   '
   
   if (parallel) {
-    cl <- makeCluster(detectCores() - 2)
+    cl <- makeCluster(ncores)
     registerDoParallel(cl)
   }
   
@@ -149,7 +149,7 @@ cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE) {
   
 }
 
-cvRF <- function(X, Y, ntrees, folds, parallel = TRUE) {
+cvRF <- function(X, Y, ntrees, folds, parallel = TRUE, ncores = 10) {
   '
   Use foreach to parallelize RF tree growth for a specified number of trees and
   estimate OOB error using cross-validation
@@ -167,7 +167,7 @@ cvRF <- function(X, Y, ntrees, folds, parallel = TRUE) {
   '
   
   if (parallel) {
-    cl <- makeCluster(detectCores() - 2)
+    cl <- makeCluster(ncores)
     registerDoParallel(cl)
   }
   
@@ -209,7 +209,7 @@ cvRF <- function(X, Y, ntrees, folds, parallel = TRUE) {
   return(result)
 }
 
-cvXGB <- function(X, Y, grid, folds, parallel = TRUE) {
+cvXGB <- function(X, Y, grid, folds, parallel = TRUE, ncores = 10) {
   '
   Use foreach to parallelize xgboost for hyperparameter tuning with CV
 
@@ -231,7 +231,7 @@ cvXGB <- function(X, Y, grid, folds, parallel = TRUE) {
   
   # Initialize cluster
   if (parallel) {
-    cl <- makeCluster(detectCores() - 2)
+    cl <- makeCluster(ncores)
     registerDoParallel(cl)
   }
   

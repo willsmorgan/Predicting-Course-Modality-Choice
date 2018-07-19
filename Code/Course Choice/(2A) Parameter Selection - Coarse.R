@@ -17,8 +17,6 @@ lapply(libs, library, character.only = TRUE)
 
 # Import
 logit <- read_csv("Results/Coarse Search/logit.csv")
-lin_svm <- read_csv("Results/Coarse Search/lin_svm.csv")
-rbf_svm <- read_csv("Results/Coarse Search/rbf_svm.csv")
 rf <- read_csv("Results/Coarse Search/rf.csv")
 boost <- read_csv("Results/Coarse Search/boost.csv")
 
@@ -28,42 +26,20 @@ boost <- read_csv("Results/Coarse Search/boost.csv")
 
 # Logit
 logit %>%
-  ggplot(aes(lambda, misclassification)) + 
-  geom_point(aes(color = alpha)) +
-  labs(x = "Penalty Strength",
+  ggplot(aes(alpha, misclassification)) + 
+  geom_point(aes(color = lambda)) +
+  labs(x = "Mixing Parameter",
        y = "CV-Misclassification Rate",
-       title = "Elastic Net Results\n") +
+       title = "Penalized Logit Results\n") +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave("Graphics/Coarse Search/logit.png")
-
-# Linear SVM
-lin_svm %>%
-  ggplot(aes(log10(cost), misclassification)) +
-  geom_point() +
-  labs(x = "log_10(cost)",
-       y = "CV-Misclassification Rate",
-       title = "Linear SVM Results") +
-  theme(plot.title = element_text(hjust = 0.5))
-
-ggsave("Graphics/Coarse Search/lin_svm.png")
-
-# RBF SVM
-# rbf_svm %>%
-#   ggplot(aes(log10(cost), misclassification)) +
-#   geom_point(aes(color = log10(gamma))) +
-#   labs(x = "log_10(cost)",
-#        y = "CV-Misclassification Rate",
-#        title = "RBF SVM Results") +
-#   theme(plot.title = element_text(hjust = 0.5))
-# 
-# ggsave("Graphics/Coarse Search/rbf_svm.png")
 
 # RF Results
 rf %>%
   ggplot(aes(num_trees, misclassification)) +
   geom_point() +
-  scale_x_continuous(breaks = seq(0, 1500, by = 250)) +
+  scale_x_continuous(breaks = seq(0, 1500, by = 200)) +
   labs(x = "Number of Trees",
        y = "CV-Misclassification Rate",
        title = "Random Forest Results") + 
@@ -74,10 +50,11 @@ ggsave("Graphics/Coarse Search/rf.png")
 # Boosting Results
 boost %>%
   ggplot(aes(factor(max_depth), misclassification)) +
-  geom_point(aes(color = factor(round(gamma, 2)))) +
+  geom_point(aes(color = round(gamma, 2))) +
   labs(x = "Max Tree Depth",
        y = "CV-Misclassification Rate",
-       title = "Boosting Results") + 
+       title = "Boosting Results",
+       color = "Gamma") + 
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave("Graphics/Coarse Search/boost.png")
@@ -86,26 +63,20 @@ ggsave("Graphics/Coarse Search/boost.png")
 
 ## 2. Aggregate Results
 
-# agg_results <- tibble(
-#   method = c("Logit", "Linear SVM", "RBF SVM",
-#              "Random Forest", "Boosting"),
-#   result = c(mean(logit$misclassification), mean(lin_svm$misclassification),
-#              mean(rbf_svm$misclassification), mean(rf$misclassification),
-#              mean(boost$misclassification)))
-  
 agg_results <- tibble(
-  method = c("Logit", "Linear SVM", "Random Forest", "Boosting"),
-  result = c(mean(logit$misclassification), mean(lin_svm$misclassification),
-             mean(rf$misclassification), mean(boost$misclassification)))
+  method = c("Logit", "Random Forest", "Boosting"),
+  result = c(mean(logit$misclassification),
+             mean(rf$misclassification),
+             mean(boost$misclassification)))
 
 agg_results %>%
   ggplot(aes(reorder(method, -result), result)) +
   geom_bar(stat = 'identity') +
-  labs(x = "Misclassification Rate on CV Sets",
-       y = "Method",
-       title = "Initial Model Performance") +
+  labs(x = "",
+       y = "CV'd Misclassificaiton Rate",
+       title = "Initial Model Performances") +
   theme(plot.title = element_text(hjust = 0.5)) +
   ylim(0, 0.5) +
   coord_flip()
 
-ggsave("Graphics/Coarse Search/Overall.png")
+ggsave("Graphics/Coarse Search/overall performances.png")
