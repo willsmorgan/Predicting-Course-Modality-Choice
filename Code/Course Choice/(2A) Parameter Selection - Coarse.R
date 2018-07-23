@@ -10,8 +10,6 @@
 #------------------------------------------------------------------------------#
 
 # 0. Setup and Import
-rm(list = ls())
-
 libs <- c("tidyverse", "data.table", "magrittr")
 lapply(libs, library, character.only = TRUE)
 
@@ -26,7 +24,7 @@ boost <- read_csv("Results/Coarse Search/boost.csv")
 
 # Logit
 logit %>%
-  ggplot(aes(alpha, misclassification)) + 
+  ggplot(aes(alpha, train_misclass)) + 
   geom_point(aes(color = lambda)) +
   labs(x = "Mixing Parameter",
        y = "CV-Misclassification Rate",
@@ -37,9 +35,9 @@ ggsave("Graphics/Coarse Search/logit.png")
 
 # RF Results
 rf %>%
-  ggplot(aes(num_trees, misclassification)) +
+  ggplot(aes(num_trees, cv_misclass)) +
   geom_point() +
-  scale_x_continuous(breaks = seq(0, 1500, by = 200)) +
+  scale_x_continuous(breaks = seq(0, 3000, by = 200)) +
   labs(x = "Number of Trees",
        y = "CV-Misclassification Rate",
        title = "Random Forest Results") + 
@@ -47,9 +45,10 @@ rf %>%
 
 ggsave("Graphics/Coarse Search/rf.png")
 
+
 # Boosting Results
 boost %>%
-  ggplot(aes(factor(max_depth), misclassification)) +
+  ggplot(aes(factor(max_depth), train_misclass)) +
   geom_point(aes(color = round(gamma, 2))) +
   labs(x = "Max Tree Depth",
        y = "CV-Misclassification Rate",
@@ -65,9 +64,9 @@ ggsave("Graphics/Coarse Search/boost.png")
 
 agg_results <- tibble(
   method = c("Logit", "Random Forest", "Boosting"),
-  result = c(mean(logit$misclassification),
-             mean(rf$misclassification),
-             mean(boost$misclassification)))
+  result = c(mean(logit$train_misclass),
+             mean(rf$train_misclass),
+             mean(boost$train_misclass)))
 
 agg_results %>%
   ggplot(aes(reorder(method, -result), result)) +

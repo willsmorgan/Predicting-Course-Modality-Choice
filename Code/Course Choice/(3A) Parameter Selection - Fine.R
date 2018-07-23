@@ -2,8 +2,8 @@
 ### Author: William Morgan
 
 ## Purpose:
-# Use results of fine hyperparameter searches to determine final values
-# of hyperparameters to use for model building
+# Evaluate results from fine search to determine best-performing hyperparameter
+# values for each model
 
 #------------------------------------------------------------------------------#
 

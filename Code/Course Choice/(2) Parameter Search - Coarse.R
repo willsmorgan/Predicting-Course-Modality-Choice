@@ -40,18 +40,13 @@ cat("Coarse Parameter Search Result Log", file = log, sep = '\n')
 
 ## 1. Import and Preprocessing
 training <- readRDS("Data/course choice training.Rds")
-validation <- readRDS("Data/course choice validation.Rds")
 
 # ## for testing purposes only:
 # training %<>% sample_frac(0.005)
-# validation %<>% sample_frac(0.005)
 
 # Create matrices for model estimation
 X_train <- model.matrix(icourse ~ .-1, training)
 Y_train <- training[, "icourse"] %>% unlist()
-
-X_val <- model.matrix(icourse ~ .-1, validation)
-Y_val <- validation[, "icourse"] %>% unlist()
 
 # Define folds for cross-validation here
 folds <-  createFolds(Y_train, k = 10, list = FALSE)
@@ -64,14 +59,13 @@ folds <-  createFolds(Y_train, k = 10, list = FALSE)
 alpha_seq <- seq(0, 1, length.out = 50)
 
 # Run CV
-logit_results <- cvLogit(X_train, Y_train, alpha_seq, ncores = 8)
+logit_results <- cvLogit(X_train, Y_train, alpha_seq, ncores = 6)
 
 # Print results for log
 cat("\nLogit Results:", file = log, sep = '\n')
 
 logit_results %>%
-  arrange(misclassification) %>%
-  select(misclassification, alpha, lambda) %>%
+  arrange(train_misclass) %>%
   mutate_all(function(x) round(x, 5)) %>%
   head() %>%
   write.table(., file = log, row.names = FALSE)
@@ -83,22 +77,16 @@ write_csv(logit_results, "Results/Coarse Search/logit.csv")
 ## 3. Random Forests
 
 # Define parameter search
-tree_sizes <- seq(100, 1500, by = 200)
+tree_sizes <- seq(100, 3000, by = 200)
 
 # Run CV
-rf_results <- foreach(i = 1:length(tree_sizes), .combine = bind_rows, .inorder = FALSE) %do% {
-  
-  # Train
-  cvRF(X_train, Y_train, ntrees = tree_sizes[i], folds, parallel = TRUE, ncores = 8)
-  
-}
+rf_results <- cvRF(X_train, Y_train, tree_sizes, folds, ncores = 6)
 
 # Print results
 cat("\nRandom Forest Results:", file = log, sep = '\n')
 
 rf_results %>%
-  arrange(misclassification) %>%
-  select(misclassification, everything()) %>%
+  arrange(train_misclass) %>%
   mutate_all(function(x) round(x, 5)) %>%
   head() %>%
   write.table(., file = log, row.names = FALSE)
@@ -110,19 +98,18 @@ write_csv(rf_results, "Results/Coarse Search/rf.csv")
 
 # Define param. grid
 boost_grid <- expand.grid(
-  depth = seq(1, 10, by = 1),
+  depth = seq(1, 15, by = 1),
   gamma = 10 ** runif(10, -2, 2)
 )
 
 # Run CV
-boost_results <- cvXGB(X_train, Y_train, boost_grid, folds, ncores = 8)
+boost_results <- cvXGB(X_train, Y_train, boost_grid, folds, ncores = 6)
 
 # Print results
 cat("\nBoosting Results:", file = log, sep = '\n')
 
 boost_results %>%
-  arrange(misclassification) %>%
-  select(misclassification, everything()) %>%
+  arrange(train_misclass) %>%
   mutate_all(function(x) round(x, 5)) %>%
   head() %>%
   write.table(., file = log, row.names = FALSE)
