@@ -1,4 +1,4 @@
-### Model Definitions for Cross-Validation
+### Model Definitions for Cross-Validation and Test set error estimation
 
 ## Penalized Logit
 ## Support Vector Machines
@@ -10,22 +10,25 @@ libs <- c("glmnet", "e1071", "magrittr", "doParallel", "foreach",
 
 lapply(libs, library, character.only = TRUE)
 
-cvLogit <- function(X, Y, alpha, parallel = TRUE, ncores = 10) {
+cvLogit <- function(X_train, Y_train, alpha, X_test = NULL, Y_test = NULL, parallel = TRUE, ncores = 10) {
   '
   Train a cross-validated penalized logit model; option for Ridge/Enet/Lasso
   and parallelized performance
   
   Args:
-  - X --> matrix of predictors
-  - Y --> vector/factor of outcomes
+  - X_train --> matrix of training predictors
+  - Y_train --> vector/factor of training outcomes
   - alpha --> vector of mixing parameter values to test
+  - X_test, Y_test ---> test set used for prediction (optional)
   
   Returns:
   - best penalty value (lambda)
   - tested mixing parameter value (alpha)
-  - cv`d misclassification rate
+  - training misclassification rate
+  - cv misclassification rate
+  - test misclassification rate (if test set is supplied)
   '
-  
+
   if (parallel) {
     cl <- makeCluster(ncores)
     registerDoParallel(cl)
@@ -36,11 +39,10 @@ cvLogit <- function(X, Y, alpha, parallel = TRUE, ncores = 10) {
     cat("Testing mixing parameter", i, "of ", length(alpha), "\n")
     
     # Begin CV
-    logit <- cv.glmnet(X, Y,
+    logit <- cv.glmnet(X_train, Y_train,
                        family = 'binomial',
                        alpha = alpha[i],
                        standardize = FALSE,
-                       nfolds = 10,
                        type.measure = 'class',
                        parallel = parallel,
                        intercept = FALSE)
@@ -48,13 +50,34 @@ cvLogit <- function(X, Y, alpha, parallel = TRUE, ncores = 10) {
     # Extract results
     ind <- which.min(logit$cvm)
     
-    list(
-      alpha = alpha[i],
-      lambda = logit$lambda.min,
-      misclassification = logit$cvm[ind],
-      up = logit$cvup[ind],
-      down = logit$cvlo[ind]
-    )
+    # Get train error of full model
+    train_preds <- predict(logit, X_train, type = 'class', s = 'lambda.min')
+    train_misclass <- 1 - mean(train_preds == Y_train)
+
+    # Evaluate on test set if supplied
+    if (!is.null(X_test) & !is.null(Y_test)) {
+      
+      # Predict and calculate misclassification
+      test_preds <- predict(logit, newx = X_test, type = 'class', s = 'lambda.min')
+      test_misclass <-  1 - mean(test_preds == Y_test)
+      
+      # Assemble results
+      list(
+        alpha = alpha[i],
+        lambda = logit$lambda.min,
+        cv_misclass = logit$cvm[ind],
+        train_misclass = train_misclass,
+        test_misclass = test_misclass
+      )
+    } else {
+      # Assemble results 
+      list(
+        alpha = alpha[i],
+        lambda = logit$lambda.min,
+        cv_misclass = logit$cvm[ind],
+        train_misclass = train_misclass
+      )
+    }
   }
 
   # End cluster if necessary
@@ -149,21 +172,24 @@ cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE, ncores 
   
 }
 
-cvRF <- function(X, Y, ntrees, folds, parallel = TRUE, ncores = 10) {
+cvRF <- function(X_train, Y_train, tree_sizes, folds, X_test = NULL, Y_test = NULL, parallel = TRUE, ncores = 10) {
   '
   Use foreach to parallelize RF tree growth for a specified number of trees and
   estimate OOB error using cross-validation
   
   Args:
-  - X --> matrix of predictors
-  - Y --> vector/factor of outcomes
+  - X_train --> matrix of training predictors
+  - Y_train --> vector/factor of training outcomes
   - ntrees --> number of trees to grow in forest
   - folds --> user-supplied vector of folds
-
+  - X_test, Y_test ---> test set used for prediction
+  
   Returns:
   - df with two columns:
   - num_trees
-  - misclassification rate
+  - training misclassification rate
+  - cv misclassification rate
+  - test misclassiciation rate (if test set supplied)
   '
   
   if (parallel) {
@@ -171,62 +197,110 @@ cvRF <- function(X, Y, ntrees, folds, parallel = TRUE, ncores = 10) {
     registerDoParallel(cl)
   }
   
-  cat("Testing RF of size:", ntrees, "\n")
-  
-  # Begin CV
-  result <- foreach(j = 1:max(folds), .combine = bind_rows) %do% {
+  # Start loop through ntrees sequence
+  result <- foreach(i = 1:length(tree_sizes), .combine = bind_rows) %do% {
     
-    cat("Fold", j, "of", max(folds), "\n")
+    cat("Testing RF of size:", tree_sizes[i], "\n") 
     
-    # Grow trees in parallel and combine into one
-    rf <- foreach(ntree = rep(ntrees/10, 10), .combine = combine, .packages = 'randomForest') %dopar% {
+    # Begin CV
+    cv_result <- foreach(j = 1:max(folds), .combine = bind_rows) %do% {
       
-      # Grow indvl tree on the k-1 folds
-      randomForest(
-        x = X[folds != j, ],
-        y = Y[folds != j],
-        ntree = ntree,
-        mtry = sqrt(dim(X)[2])
+      cat("Fold", j, "of", max(folds), "\n")
+      
+      # Grow trees in parallel and combine into one
+      rf <- foreach(ntree = rep(tree_sizes[i]/10, 10), .combine = combine, .packages = 'randomForest') %dopar% {
+        
+        # Grow indvl tree on the k-1 folds
+        randomForest(
+          x = X_train[folds != j, ],
+          y = Y_train[folds != j],
+          ntree = ntree,
+          mtry = sqrt(dim(X_train)[2])
+        )
+      }
+      
+      # Predict on out-of-sample fold
+      pred <- predict(rf, X_train[folds == j, ], type = 'response')
+      
+      # Return df of results
+      data.frame(
+        num_trees = tree_sizes[i],
+        cv_misclass = 1 - mean(pred == Y_train[folds == j]),
+        fold = j
       )
     }
     
-    # Predict on out-of-sample fold
-    pred <- predict(rf, X[folds == j, ], type = 'response')
+    # Average CV results for given tree size
+    cv_result %<>%
+      group_by(num_trees) %>%
+      summarise_at(vars(cv_misclass), mean)
     
-    # Return df of results
-    data.frame(
-      num_trees = ntrees,
-      misclassification = 1 - mean(pred == Y[folds == j]),
-      fold = j
-    )
+    # Regrow forest on full train set for training error
+    rf <- foreach(ntree = rep(tree_sizes[i]/10, 10), .combine = combine, .packages = 'randomForest') %dopar% {
+      
+      # Grow indvl trees
+      randomForest(
+        x = X_train,
+        y = Y_train,
+        ntree = ntree,
+        mtry = sqrt(dim(X_train)[2])
+      )
+    }
+    
+    # Training error
+    train_preds <- predict(rf, X_train, type = 'response')
+    train_misclass <- 1 - mean(train_preds == Y_train)
+    
+    # Bind training error to result DF
+    cv_result$train_misclass <- train_misclass
+    
+    # Evaluate on test set if available
+    if (!is.null(X_test) & !is.null(Y_test)) {
+      
+      # Evaluate on test set
+      test_pred <- predict(rf, X_test, type = 'response')
+      test_misclass <- 1 - mean(test_pred == Y_test)
+      
+      # Bind training and testing result
+      cv_result$test_misclass <- test_misclass
+    }
+    
+    # Print result for row binding
+    cv_result
+    
   }
   
   if (parallel) {on.exit(stopCluster(cl))}
   
-  # Average error rate across folds
-  result %<>% group_by(num_trees) %>% summarise_at(vars(misclassification), mean)
-  
   return(result)
 }
 
-cvXGB <- function(X, Y, grid, folds, parallel = TRUE, ncores = 10) {
+cvXGB <- function(X_train, Y_train, grid, folds, X_test = NULL, Y_test = NULL, parallel = TRUE, ncores = 10) {
   '
   Use foreach to parallelize xgboost for hyperparameter tuning with CV
-
+  
   Args:
-  - X --> matrix of predictors
-  - Y --> vector/factor of outcomes
+  - X_train --> matrix of training predictors
+  - Y_train --> vector/factor of training outcomes
   - grid --> df of parameter combinations to test
   - folds --> user-supplied vector of folds
-
+  - X_test, Y_test --> set used for out-of-sample error estimation  
+  
   Returns:
   - df specifying:
-    - tested parameters
-    - misclassification rate
+  - tested parameters
+  - train misclassification rate
+  - cv misclassification rate
+  - test misclassification rate (if test set is supplied)
   '
   # Force Y to numeric if inputted as factor
-  if (is.factor(Y)) {
-    Y <- as.numeric(levels(Y))[Y]
+  if (is.factor(Y_train)) {
+    Y_train <- as.numeric(levels(Y_train))[Y_train]
+  }
+  
+  # Repeat for test set Y if available
+  if (!is.null(Y_test) & is.factor(Y_test)) {
+    Y_test <- as.numeric(levels(Y_test))[Y_test]
   }
   
   # Initialize cluster
@@ -245,12 +319,12 @@ cvXGB <- function(X, Y, grid, folds, parallel = TRUE, ncores = 10) {
     gamma <- grid[i, "gamma"]
     
     # Begin CV
-    foreach(j = 1:max(folds), .combine = bind_rows, .packages = 'xgboost') %dopar% {
+    cv_results <- foreach(j = 1:max(folds), .combine = bind_rows, .packages = 'xgboost') %dopar% {
       
       # Train model
       model <- xgboost(
-        data = X[folds != j, ],
-        label = Y[folds != j],
+        data = X_train[folds != j, ],
+        label = Y_train[folds != j],
         params = list(
           nthread = 1,
           objective = 'binary:logistic',
@@ -263,24 +337,58 @@ cvXGB <- function(X, Y, grid, folds, parallel = TRUE, ncores = 10) {
       )
       
       # Predict on Kth fold
-      preds <- as.numeric(predict(model, X[folds == j, ]) >= 0.5)
+      preds <- as.numeric(predict(model, X_train[folds == j, ]) >= 0.5)
       
       # Spit out results
       data.frame(
-        misclassification = 1 - mean(preds == Y[folds == j]),
+        cv_misclass = 1 - mean(preds == Y_train[folds == j]),
         max_depth = depth,
         gamma = gamma,
         fold = j
       )
     }
+    
+    # Average across folds
+    cv_results %<>% group_by(gamma, max_depth) %>% summarise_at(vars(cv_misclass), mean)
+    
+    # Retrain model on entire training set
+    model <- xgboost(
+      data = X_train,
+      label = Y_train,
+      params = list(
+        nthread = ncores,
+        objective = 'binary:logistic',
+        max_depth = depth,
+        gamma = gamma
+      ),
+      nrounds = 250,
+      early_stopping_rounds = 10,
+      verbose = 0
+    )
+    
+    # Get training error
+    train_preds <- as.numeric(predict(model, X_train) >= 0.5)
+    train_misclass <- 1 - mean(train_preds == Y_train)
+    
+    # Bind training error to result DF
+    cv_results$train_misclass <- train_misclass
+    
+    # Evaluate on test set if possible
+    if (!is.null(X_test) & !is.null(Y_test)) {
+      
+      # Evaluate on test set
+      preds <- as.numeric(predict(model, X_test) >= 0.5)
+      test_misclass <- 1 - mean(preds == Y_test)
+      
+      # Add test misclassification rate to working result DF
+      cv_results$test_misclass <- test_misclass
+    }
+    
+    # Print results for row binding
+    cv_results
   }
   
   if (parallel) {on.exit(stopCluster(cl))}
-  
-  # Average error across folds
-  results %<>%
-    group_by(gamma, max_depth) %>%
-    summarise_at(vars(misclassification), mean)
   
   return(results)
   
