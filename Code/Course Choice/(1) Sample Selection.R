@@ -218,29 +218,29 @@ train_index <- createDataPartition(data$icourse,
                                    list = FALSE)
 
 training_set <- data[train_index, ]
-val_set <- data[-train_index, ]
+test_set <- data[-train_index, ]
 
-# Create second partition for test/val set
+# Create second partition for holdout set
 if (create_test_set) {
   test_index <- createDataPartition(val_set$icourse,
                                    p = 0.5,
                                    list = FALSE)
   
-  testing_set <- val_set[test_index, ]
-  val_set <- val_set[-test_index, ]
+  testing_set <- test_set[test_index, ]
+  holdout_set <- test_set[-test_index, ]
 }
 
 # Stdize to the training set and apply to testing
 stdize_vals <- preProcess(training_set, method = c("center", "scale"))
 
 training_set <- predict(stdize_vals, training_set)
-val_set <- predict(stdize_vals, val_set)
+test_set <- predict(stdize_vals, test_set)
 
 if (create_test_set) {
-  testing_set <- predict(stdize_vals, testing_set)
-  saveRDS(testing_set, "Data/course choice testing.Rds")
+  holdout_set <- predict(stdize_vals, holdout_set)
+  saveRDS(holdout_set, "Data/course choice holdout.Rds")
 }
 
 # Export
 saveRDS(training_set, "Data/course choice training.Rds")
-saveRDS(val_set, "Data/course choice validation.Rds")
+saveRDS(val_set, "Data/course choice testing.Rds")
