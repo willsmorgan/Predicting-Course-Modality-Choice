@@ -10,7 +10,7 @@ libs <- c("glmnet", "e1071", "magrittr", "doParallel", "foreach",
 
 lapply(libs, library, character.only = TRUE)
 
-cvLogit <- function(X_train, Y_train, alpha, X_test = NULL, Y_test = NULL, parallel = TRUE, ncores = 10) {
+cvLogit <- function(X_train, Y_train, alpha, X_test = NULL, Y_test = NULL, ncores = 10) {
   '
   Train a cross-validated penalized logit model; option for Ridge/Enet/Lasso
   and parallelized performance
@@ -29,11 +29,10 @@ cvLogit <- function(X_train, Y_train, alpha, X_test = NULL, Y_test = NULL, paral
   - test misclassification rate (if test set is supplied)
   '
 
-  if (parallel) {
-    cl <- makeCluster(ncores)
-    registerDoParallel(cl)
-  }
-  
+  # Initialize cluster
+  cl <- makeCluster(ncores)
+  registerDoParallel(cl)
+
   result <- foreach(i = 1:length(alpha), .combine = bind_rows, .inorder = FALSE) %do% {
     
     cat("Testing mixing parameter", i, "of ", length(alpha), "\n")
@@ -44,7 +43,7 @@ cvLogit <- function(X_train, Y_train, alpha, X_test = NULL, Y_test = NULL, paral
                        alpha = alpha[i],
                        standardize = FALSE,
                        type.measure = 'class',
-                       parallel = parallel,
+                       parallel = TRUE,
                        intercept = FALSE)
     
     # Extract results
@@ -80,8 +79,8 @@ cvLogit <- function(X_train, Y_train, alpha, X_test = NULL, Y_test = NULL, paral
     }
   }
 
-  # End cluster if necessary
-  if (parallel) {on.exit(stopCluster(cl))}
+  # End cluster
+  stopCluster(cl)
   
   return(result)
 }
@@ -172,7 +171,7 @@ cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE, ncores 
   
 }
 
-cvRF <- function(X_train, Y_train, tree_sizes, folds, X_test = NULL, Y_test = NULL, parallel = TRUE, ncores = 10) {
+cvRF <- function(X_train, Y_train, folds, tree_sizes, X_test = NULL, Y_test = NULL, ncores = 10) {
   '
   Use foreach to parallelize RF tree growth for a specified number of trees and
   estimate OOB error using cross-validation
@@ -191,91 +190,117 @@ cvRF <- function(X_train, Y_train, tree_sizes, folds, X_test = NULL, Y_test = NU
   - cv misclassification rate
   - test misclassiciation rate (if test set supplied)
   '
-  
-  if (parallel) {
-    cl <- makeCluster(ncores)
-    registerDoParallel(cl)
-  }
-  
-  # Start loop through ntrees sequence
-  result <- foreach(i = 1:length(tree_sizes), .combine = bind_rows) %do% {
+  # Define functino to parallelize forest growth
+  parGrow <- function(X, Y, tree_size) {
     
-    cat("Testing RF of size:", tree_sizes[i], "\n") 
-    
-    # Begin CV
-    cv_result <- foreach(j = 1:max(folds), .combine = bind_rows) %do% {
-      
-      cat("Fold", j, "of", max(folds), "\n")
-      
-      # Grow trees in parallel and combine into one
-      rf <- foreach(ntree = rep(tree_sizes[i]/10, 10), .combine = combine, .packages = 'randomForest') %dopar% {
-        
-        # Grow indvl tree on the k-1 folds
-        randomForest(
-          x = X_train[folds != j, ],
-          y = Y_train[folds != j],
-          ntree = ntree,
-          mtry = sqrt(dim(X_train)[2])
-        )
-      }
-      
-      # Predict on out-of-sample fold
-      pred <- predict(rf, X_train[folds == j, ], type = 'response')
-      
-      # Return df of results
-      data.frame(
-        num_trees = tree_sizes[i],
-        cv_misclass = 1 - mean(pred == Y_train[folds == j]),
-        fold = j
-      )
+    # Search parent environment for ncores and initalize cluster
+    if (ncores > 1) {
+      cl <- makeCluster(ncores)
+      registerDoParallel(cl)
+      on.exit(stopCluster(cl))
     }
     
-    # Average CV results for given tree size
+    # Grow trees in parallel and combine into one
+    rf <- foreach(ntree = rep(tree_size/10, 10),
+                  .combine = randomForest::combine,
+                  .multicombine = TRUE,
+                  .inorder = FALSE,
+                  .packages = 'randomForest') %dopar% {
+                    
+                    # Grow indvl tree on the k-1 folds
+                    randomForest(
+                      x = X,
+                      y = Y,
+                      ntree = ntree,
+                      mtry = sqrt(dim(X)[2])
+                    )
+                  }
+    
+    # Return an RF object
+    rf
+  }
+  
+  # Define function to evaluate specific fold
+  evalFold <- function(fold) {
+    
+    # Train forest
+    forest <- parGrow(X = X_train[folds != fold, ],
+                      Y = Y_train[folds != fold],
+                      tree_size = tree_size)
+    
+    # Evaluate on OOS fold
+    preds <- predict(forest,
+                     X_train[folds == fold, ],
+                     type = 'response')
+    
+    # Return df of results
+    data.frame(
+      tree_size = tree_size,
+      cv_misclass = 1 - mean(preds == Y_train[folds == fold]),
+      fold = fold
+    )
+    
+  }
+  
+  # Define function to run through all folds  
+  runCV <- function() {
+    
+    # Train and evaluate each fold
+    cv_result <- foreach(fold = 1:max(folds),
+                         .combine = bind_rows,
+                         .multicombine = TRUE,
+                         .inorder = FALSE) %do% {
+                           
+                           # Print status
+                           cat("Fold", fold, "of", max(folds), "\n")
+                           
+                           # Run evaluation tool
+                           evalFold(fold)
+                         }
+    
+    # Summarise across folds
     cv_result %<>%
-      group_by(num_trees) %>%
+      group_by(tree_size) %>%
       summarise_at(vars(cv_misclass), mean)
     
-    # Regrow forest on full train set for training error
-    rf <- foreach(ntree = rep(tree_sizes[i]/10, 10), .combine = combine, .packages = 'randomForest') %dopar% {
-      
-      # Grow indvl trees
-      randomForest(
-        x = X_train,
-        y = Y_train,
-        ntree = ntree,
-        mtry = sqrt(dim(X_train)[2])
-      )
-    }
-    
-    # Training error
-    train_preds <- predict(rf, X_train, type = 'response')
-    train_misclass <- 1 - mean(train_preds == Y_train)
-    
-    # Bind training error to result DF
-    cv_result$train_misclass <- train_misclass
-    
-    # Evaluate on test set if available
-    if (!is.null(X_test) & !is.null(Y_test)) {
-      
-      # Evaluate on test set
-      test_pred <- predict(rf, X_test, type = 'response')
-      test_misclass <- 1 - mean(test_pred == Y_test)
-      
-      # Bind training and testing result
-      cv_result$test_misclass <- test_misclass
-    }
-    
-    # Print result for row binding
+    # Return cv_results
     cv_result
-    
   }
   
-  if (parallel) {on.exit(stopCluster(cl))}
-  
-  return(result)
+  # Run through vector of tree sizes
+  result <- foreach(i = seq_along(tree_sizes),
+                    .combine = bind_rows,
+                    .multicombine = TRUE,
+                    .inorder = FALSE) %do% {
+                      
+                      cat("Testing RF of size:", tree_sizes[i], "\n")
+                      
+                      # Establish tree size to test
+                      tree_size <- tree_sizes[i]
+                      
+                      # Run CV for current tree size
+                      cv_result <- runCV()
+                      
+                      # Find test error if supplied
+                      if (!is.null(X_test) & !is.null(Y_test)) {
+                        
+                        # Grow on full training set
+                        rf <- parGrow(X_train, Y_train, tree_size)
+                        
+                        # Predict
+                        test_pred <- predict(rf, X_test, type = 'response')
+                        test_misclass <- 1 - mean(test_pred == Y_test)
+                        
+                        # Attach result to existing df of results
+                        cv_result$test_misclass <- test_misclass
+                      }
+                      
+                      # Print result for row binding
+                      cv_result
+                    }
 }
 
-cvXGB <- function(X_train, Y_train, grid, folds, X_test = NULL, Y_test = NULL, parallel = TRUE, ncores = 10) {
+cvXGB <- function(X_train, Y_train, grid, folds, X_test = NULL, Y_test = NULL, ncores = 10) {
   '
   Use foreach to parallelize xgboost for hyperparameter tuning with CV
   
@@ -304,9 +329,10 @@ cvXGB <- function(X_train, Y_train, grid, folds, X_test = NULL, Y_test = NULL, p
   }
   
   # Initialize cluster
-  if (parallel) {
+  if (ncores > 1) {
     cl <- makeCluster(ncores)
     registerDoParallel(cl)
+    on.exit(stopCluster(cl))
   }
   
   # Iterate through parameter grid
@@ -387,8 +413,6 @@ cvXGB <- function(X_train, Y_train, grid, folds, X_test = NULL, Y_test = NULL, p
     # Print results for row binding
     cv_results
   }
-  
-  if (parallel) {on.exit(stopCluster(cl))}
   
   return(results)
   
