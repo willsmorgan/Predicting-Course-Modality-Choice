@@ -38,14 +38,13 @@ training %<>% sample_frac(0.005)
 testing %<>% sample_frac(0.005)
 
 # Create matrices for model estimation
-X_train <- model.matrix(icourse ~ ., training)
+X_train <- model.matrix(icourse ~ . -1, training)
 Y_train <- training[, "icourse"] %>% unlist()
 
-X_test <- model.matrix(icourse ~ ., testing)
+X_test <- model.matrix(icourse ~ . -1 , testing)
 Y_test <- testing[, "icourse"] %>% unlist()
 
-# Define folds for cross-validation here
-folds <-  createFolds(Y_train, k = 10, list = FALSE)
+
 #------------------------------------------------------------------------------#
 
 ## 2. Penalized Logit

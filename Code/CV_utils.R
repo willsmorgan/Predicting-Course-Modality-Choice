@@ -171,7 +171,10 @@ cvSVM <- function(X, Y, kernel = 'linear', grid, folds, parallel = TRUE, ncores 
   
 }
 
-cvRF <- function(X_train, Y_train, folds, tree_sizes, X_test = NULL, Y_test = NULL, ncores = 10) {
+cvRF <- function(X_train, Y_train, folds, tree_sizes, sample_frac = 1,
+                 proximity = FALSE, nodesize = 5,
+                 X_test = NULL, Y_test = NULL,
+                 ncores = 10) {
   '
   Use foreach to parallelize RF tree growth for a specified number of trees and
   estimate OOB error using cross-validation
@@ -186,12 +189,11 @@ cvRF <- function(X_train, Y_train, folds, tree_sizes, X_test = NULL, Y_test = NU
   Returns:
   - df with two columns:
   - num_trees
-  - training misclassification rate
   - cv misclassification rate
   - test misclassiciation rate (if test set supplied)
   '
   # Define functino to parallelize forest growth
-  parGrow <- function(X, Y, tree_size) {
+  parGrow <- function(X, Y, tree_size, proximity, sample_frac, nodesize) {
     
     # Search parent environment for ncores and initalize cluster
     if (ncores > 1) {
@@ -212,7 +214,10 @@ cvRF <- function(X_train, Y_train, folds, tree_sizes, X_test = NULL, Y_test = NU
                       x = X,
                       y = Y,
                       ntree = ntree,
-                      mtry = sqrt(dim(X)[2])
+                      mtry = floor(sqrt(ncol(X))),
+                      sampsize = dim(X)[1] * sample_frac,
+                      proximity = proximity,
+                      nodesize = nodesize
                     )
                   }
     
@@ -226,7 +231,10 @@ cvRF <- function(X_train, Y_train, folds, tree_sizes, X_test = NULL, Y_test = NU
     # Train forest
     forest <- parGrow(X = X_train[folds != fold, ],
                       Y = Y_train[folds != fold],
-                      tree_size = tree_size)
+                      tree_size = tree_size,
+                      proximity = proximity,
+                      sample_frac = sample_frac,
+                      nodesize = nodesize)
     
     # Evaluate on OOS fold
     preds <- predict(forest,
@@ -391,13 +399,6 @@ cvXGB <- function(X_train, Y_train, grid, folds, X_test = NULL, Y_test = NULL, n
       early_stopping_rounds = 10,
       verbose = 0
     )
-    
-    # Get training error
-    train_preds <- as.numeric(predict(model, X_train) >= 0.5)
-    train_misclass <- 1 - mean(train_preds == Y_train)
-    
-    # Bind training error to result DF
-    cv_results$train_misclass <- train_misclass
     
     # Evaluate on test set if possible
     if (!is.null(X_test) & !is.null(Y_test)) {

@@ -26,7 +26,7 @@
 ## 0. Setup
 rm(list = ls(all = TRUE))
 
-libs <- c("tidyverse", "magrittr", "doParallel", "foreach", 'caret')
+libs <- c("tidyverse", "magrittr", 'caret')
 lapply(libs, library, character.only = TRUE)
 set.seed(18)
 
@@ -42,7 +42,7 @@ cat("Coarse Parameter Search Result Log", file = log, sep = '\n')
 training <- readRDS("Data/course choice training.Rds")
 
 # ## for testing purposes only:
-# training %<>% sample_frac(0.005)
+training %<>% sample_frac(0.02)
 
 # Create matrices for model estimation
 X_train <- model.matrix(icourse ~ .-1, training)
@@ -56,10 +56,10 @@ folds <-  createFolds(Y_train, k = 10, list = FALSE)
 ## 2. Penalized Logit
 
 # Define list of mixing parameter values to test
-alpha_seq <- seq(0, 1, length.out = 50)
+alpha_seq <- seq(0, 1, length.out = 25)
 
 # Run CV
-logit_results <- cvLogit(X_train, Y_train, alpha_seq, ncores = 6)
+logit_results <- cvLogit(X_train, Y_train, alpha_seq, ncores = 8)
 
 # Print results for log
 cat("\nLogit Results:", file = log, sep = '\n')
@@ -77,16 +77,19 @@ write_csv(logit_results, "Results/Coarse Search/logit.csv")
 ## 3. Random Forests
 
 # Define parameter search
-tree_sizes <- seq(100, 3000, by = 200)
+tree_sizes <- seq(200, 3000, by = 200)
 
 # Run CV
-rf_results <- cvRF(X_train, Y_train, tree_sizes, folds, ncores = 6)
+rf_results <- cvRF(X_train, Y_train, folds, 
+                   tree_sizes, sample_frac = 1,
+                   proximity = FALSE, nodesize = 50,
+                   ncores = 8)
 
 # Print results
 cat("\nRandom Forest Results:", file = log, sep = '\n')
 
 rf_results %>%
-  arrange(train_misclass) %>%
+  arrange(cv_misclass) %>%
   mutate_all(function(x) round(x, 5)) %>%
   head() %>%
   write.table(., file = log, row.names = FALSE)
@@ -103,7 +106,7 @@ boost_grid <- expand.grid(
 )
 
 # Run CV
-boost_results <- cvXGB(X_train, Y_train, boost_grid, folds, ncores = 6)
+boost_results <- cvXGB(X_train, Y_train, boost_grid, folds, ncores = 8)
 
 # Print results
 cat("\nBoosting Results:", file = log, sep = '\n')

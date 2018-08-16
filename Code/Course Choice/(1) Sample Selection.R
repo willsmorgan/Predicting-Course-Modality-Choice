@@ -37,8 +37,6 @@
 #------------------------------------------------------------------------------#
 
 ## 0. Setup
-rm(list = ls())
-
 libs <- c("tidyverse", "data.table", "magrittr", "caret")
 lapply(libs, library, character.only = TRUE)
 
@@ -83,7 +81,9 @@ data %<>%
          crse_grade_off %in% c("A", "A-", "A+", "B", "B+", "B-",
                                "C", "C+", "C-", "D", "E", "W"),
          session_code %in% c("A", "B", "C"),
-         !is.na(stem_degree))
+         !is.na(stem_degree),
+         cdi > 0 & cdi < 4.33,
+         age >= 16)
 
 cat("\nNumber of observations after initial drops: ", nrow(data), "\n", file = log)
 
@@ -109,8 +109,8 @@ ac <- c("Freshman", "sophomore", "Junior", "Senior","Post-Bacc Undergraduate", "
 cp <- c("TEMPE", "DTPHX", "POLY", "WEST")
 eth <- c("White", "American I", "2 or More", "Asian", "Black", "Haw/Pac", "Hispanic", "NR")
 sterm <- c("2114", "2117", "2121", "2124", "2127", "2131", "2134", "2137",
-          "2141", "2144", "2147", "2151", "2154", "2157", "2161", "2164",
-          "2167", "2171", "2174", "2177")
+           "2141", "2144", "2147", "2151", "2154", "2157", "2161", "2164",
+           "2167", "2171", "2174", "2177")
 terms <- c("Fall", "Spring", "Summer")
 years <- c("2011", "2012",  "2013", "2014", "2015", "2016", "2017", "2018")
 
@@ -143,7 +143,7 @@ data %<>%
 
 # Define columns to keep
 cols <- c("acad_level", "age", "age2", "campus", "cdi", "cdi2", 
-          "course_load", "ethnicity", "fed_efc", "first_gen", "gender", "icourse",
+          "course_load", "days_before_strt", "ethnicity", "fed_efc", "first_gen", "gender", "icourse",
           "in_state", "include_in_gpa", "mult_degree",  "nth_term", "num_ico_taken",
           "pell_eligible", "prev_term_gpa", "prev_term_gpa2", "required_course", "stem_degree",
           "tot_req_crses_bot", "total_enrolled", "transfer", "trf_creds_first_term",
@@ -222,7 +222,7 @@ test_set <- data[-train_index, ]
 
 # Create second partition for holdout set
 if (create_test_set) {
-  test_index <- createDataPartition(val_set$icourse,
+  test_index <- createDataPartition(test_set$icourse,
                                    p = 0.5,
                                    list = FALSE)
   
@@ -234,7 +234,7 @@ if (create_test_set) {
 stdize_vals <- preProcess(training_set, method = c("center", "scale"))
 
 training_set <- predict(stdize_vals, training_set)
-test_set <- predict(stdize_vals, test_set)
+testing_set <- predict(stdize_vals, testing_set)
 
 if (create_test_set) {
   holdout_set <- predict(stdize_vals, holdout_set)
@@ -243,4 +243,4 @@ if (create_test_set) {
 
 # Export
 saveRDS(training_set, "Data/course choice training.Rds")
-saveRDS(val_set, "Data/course choice testing.Rds")
+saveRDS(testing_set, "Data/course choice testing.Rds")

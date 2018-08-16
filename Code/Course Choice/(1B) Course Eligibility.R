@@ -10,10 +10,9 @@
 #------------------------------------------------------------------------------#
 
 ## 0. Setup
-#rm(list = ls(all = TRUE))
-
-libs <- c("data.table", "tidyverse", "magrittr")
-lapply(libs, library, character.only = T)
+libs <- c("data.table", "dplyr", "magrittr", "purrr", "stringr",
+          "lubridate", "tidyr")
+lapply(libs, library, character.only = TRUE)
 
 ps <- 'R:/Data/ASU Core/Student Data/Peoplesoft Data/'
 
@@ -36,7 +35,7 @@ if (!file.exists("Data/choice model course list.csv")) {
                 verbose = FALSE)
   }
   
-  # Create list of eligible courses
+  # Create list of eligible courses based on enrlmt numbers
   course_list <- fd %>%
     filter(crse_modality %in% c("F2F", "ICOURSE"),
            catalog_nbr < 500) %>%
@@ -47,12 +46,53 @@ if (!file.exists("Data/choice model course list.csv")) {
     filter(!is.na(F2F) & !is.na(ICOURSE)) %>%
     mutate(enrl_total = F2F + ICOURSE) %>%
     select(-catalog_nbr)
+
   
+  # Add to that list by ensuring at least one open seat in each modality
+  enrl_caps <- fread("Data/enrollment_caps.csv") %>%
+    rename_all(str_to_lower) %>%
+    select(order(colnames(.)))
+  
+  ## Initial cleaning
+  enrl_caps %<>% filter(!is.na(class_nbr),
+                 catalog_nbr < 500,
+                 location %in% c("DTPHX", "ICOURSE", "POLY", "TEMPE", "WEST")) %>%
+    mutate(crse_modality = if_else(location == "ICOURSE", "ICOURSE", "F2F"),
+           course = paste(subject, catalog_nbr, sep = '|')) %>%
+    select(-location, -subject, -catalog_nbr) %>%
+    arrange(strm, course, crse_modality)
+  
+  ## Open seat counts by modality
+  enrl_caps %<>%
+    group_by(course, strm, crse_modality) %>%
+    summarise(avail_seats = sum(enrl_cap),
+              taken_seats = sum(enrl_tot)) %>%
+    ungroup() %>%
+    mutate(open_seats = avail_seats - taken_seats) %>%
+    select(-avail_seats, -taken_seats)
+  
+  enrl_caps %<>%
+    mutate(open_seats_f2f = if_else(crse_modality == "F2F", open_seats, NA_integer_),
+           open_seats_ico = if_else(crse_modality == "ICOURSE", open_seats, NA_integer_))
+  
+  enrl_caps %<>% 
+    group_by(course, strm) %>%
+    mutate(open_seats_f2f = sum(open_seats_f2f, na.rm = TRUE),
+           open_seats_ico = sum(open_seats_ico, na.rm = TRUE)) %>%
+    slice(1) %>%
+    select(-crse_modality, -open_seats) %>%
+    filter(open_seats_f2f > 0,
+           open_seats_ico > 0)
+  
+  
+  course_list <- inner_join(course_list, enrl_caps, by = c("course", "strm"))
+  
+    
   fwrite(course_list, "Data/choice model course list.csv")
-  rm(fd)
+  rm(fd, enrl_caps)
   
 } else {
   course_list <- fread("Data/choice model course list.csv") 
 }
 
-
+#------------------------------------------------------------------------------#

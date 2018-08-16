@@ -35,7 +35,7 @@ ggsave("Graphics/Coarse Search/logit.png")
 
 # RF Results
 rf %>%
-  ggplot(aes(num_trees, cv_misclass)) +
+  ggplot(aes(tree_size, cv_misclass)) +
   geom_point() +
   scale_x_continuous(breaks = seq(0, 3000, by = 200)) +
   labs(x = "Number of Trees",
@@ -64,15 +64,15 @@ ggsave("Graphics/Coarse Search/boost.png")
 
 agg_results <- tibble(
   method = c("Logit", "Random Forest", "Boosting"),
-  result = c(mean(logit$train_misclass),
-             mean(rf$train_misclass),
-             mean(boost$train_misclass)))
+  result = c(mean(logit$cv_misclass),
+             mean(rf$cv_misclass),
+             mean(boost$cv_misclass)))
 
 agg_results %>%
   ggplot(aes(reorder(method, -result), result)) +
   geom_bar(stat = 'identity') +
   labs(x = "",
-       y = "CV'd Misclassificaiton Rate",
+       y = "CV-Misclassificaiton Rate",
        title = "Initial Model Performances") +
   theme(plot.title = element_text(hjust = 0.5)) +
   ylim(0, 0.5) +
