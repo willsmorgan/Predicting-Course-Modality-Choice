@@ -47,13 +47,13 @@ data <- fread("Data/full_data.csv")
 create_val_set = TRUE
 
 # Open Log
-log <- file("Logs/Sample Selection.txt", open = "wt")
-write_lines('Course Choice Sample Selection Log', path = log)
+log <- file("Logs/Sample Selection OC.txt", open = "wt")
+write_lines('Course Choice Sample Selection OC Log', path = log)
 
 #------------------------------------------------------------------------------#
 ## 1. Feature creation
 # Set option for including on_campus var
-create_OC = FALSE
+create_OC = TRUE
 
 # Run script to create new features not already present in data
 source("Code/Course Choice/(1A) Feature Creation.R")
@@ -136,7 +136,7 @@ data %<>%
 # Make sure indicator variables are factorized
 ind_vars <- c("icourse", "first_gen", "in_state", "gender", "pell_eligible", 
               "required_course", "stem_degree", "took_course", "took_instructor", "transfer",
-              "upper_division", "mult_degree", "include_in_gpa")
+              "upper_division", "mult_degree", "on_campus")
 
 # Edit indicators to all be 1/0, then force to factor setting reference at 0
 data %<>%
@@ -152,6 +152,7 @@ data %<>%
 cols <- c("acad_level", "age", "age2", "campus", "cdi", "cdi2", 
           "creds_at_enrl", "days_before_strt", "ethnicity", "fed_efc", "first_gen", "gender", "icourse",
           "in_state", "mult_degree",  "nth_term", "num_ico_taken", "num_sect_f2f", "num_sect_ico",
+          "on_campus",
           "pell_eligible", "prev_term_gpa", "prev_term_gpa2", "required_course", "stem_degree",
           "tot_req_crses_bot", "transfer", "trf_creds_first_term",
           "upper_division")
@@ -227,8 +228,8 @@ test_set <- data[-train_index, ]
 # Create second partition for holdout set
 if (create_val_set) {
   test_index <- createDataPartition(test_set$icourse,
-                                   p = 0.5,
-                                   list = FALSE)
+                                    p = 0.5,
+                                    list = FALSE)
   
   testing_set <- test_set[test_index, ]
   holdout_set <- test_set[-test_index, ]
@@ -242,9 +243,9 @@ testing_set <- predict(stdize_vals, testing_set)
 
 if (create_val_set) {
   holdout_set <- predict(stdize_vals, holdout_set)
-  saveRDS(holdout_set, "Data/course choice holdout.Rds")
+  saveRDS(holdout_set, "Data/course choice holdout OC.Rds")
 }
 
 # Export
-saveRDS(training_set, "Data/course choice training.Rds")
-saveRDS(testing_set, "Data/course choice testing.Rds")
+saveRDS(training_set, "Data/course choice training OC.Rds")
+saveRDS(testing_set, "Data/course choice testing OC.Rds")
